@@ -10,12 +10,15 @@ import com.example.model.FamilyHousehold
 import com.example.model.FamilyMessage
 import com.example.model.FamilyTask
 import com.example.model.GuardianContact
+import com.example.model.LiveSessionRequest
+import com.example.model.PairedDevice
 import com.example.model.PairingCode
 import com.example.model.PremiumFilterConfig
 import com.example.model.SafeGeofence
 import com.example.model.SafetyAlert
 import com.example.model.ScheduleRoutine
 import com.example.model.UserProfile
+import com.example.util.AndroidPlatformHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -28,6 +31,8 @@ class AnchorRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
     companion object {
+        const val PAIRING_CODE_TTL_MS = 10 * 60 * 1000L // 10 minutes
+
         fun create(context: Context): AnchorRepository {
             val databaseId = context.getString(R.string.firestore_database_id)
             val firestore = FirebaseFirestore.getInstance(databaseId)
@@ -87,12 +92,79 @@ class AnchorRepository(
     suspend fun getChildren(familyId: String): List<ChildProfile> {
         val path = "families/$familyId/children"
         return try {
-            val uid = auth.currentUser?.uid ?: ""
-            val snap = db.collection(path).whereEqualTo("ownerUid", uid).get().await()
+            val snap = db.collection(path).get().await()
             snap.toObjects(ChildProfile::class.java)
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.LIST, path)
             emptyList()
+        }
+    }
+
+    // ===============================================================
+    // Secure Parent-Child Pairing Operations
+    // ===============================================================
+    suspend fun createPairingCode(
+        familyId: String,
+        ownerUid: String,
+        childId: String,
+        childName: String
+    ): PairingCode {
+        val nowMs = System.currentTimeMillis()
+        val secureCode = AndroidPlatformHelper.generateSecurePairingCode()
+        val codeId = "pair_${childId}_$nowMs"
+        val newCode = PairingCode(
+            id = codeId,
+            codeId = codeId,
+            familyId = familyId,
+            ownerUid = ownerUid,
+            childId = childId,
+            childName = childName,
+            code = secureCode,
+            expiresAtEpochMs = nowMs + PAIRING_CODE_TTL_MS,
+            status = "ACTIVE",
+            revoked = false,
+            attemptCount = 0,
+            maxAttempts = 5
+        )
+        val collectionPath = "families/$familyId/pairingCodes"
+        try {
+            val existingSnap = db.collection(collectionPath)
+                .whereEqualTo("childId", childId)
+                .whereEqualTo("status", "ACTIVE")
+                .get()
+                .await()
+            val batch = db.batch()
+            for (doc in existingSnap.documents) {
+                batch.update(
+                    doc.reference,
+                    mapOf(
+                        "status" to "REVOKED",
+                        "revoked" to true,
+                        "revokedAtEpochMs" to nowMs
+                    )
+                )
+            }
+            batch.set(db.document("$collectionPath/$codeId"), newCode)
+            batch.commit().await()
+            return newCode
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.WRITE, "$collectionPath/$codeId")
+            throw e
+        }
+    }
+
+    suspend fun revokePairingCode(familyId: String, codeId: String) {
+        val path = "families/$familyId/pairingCodes/$codeId"
+        try {
+            db.document(path).update(
+                mapOf(
+                    "status" to "REVOKED",
+                    "revoked" to true,
+                    "revokedAtEpochMs" to System.currentTimeMillis()
+                )
+            ).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
         }
     }
 
@@ -105,12 +177,115 @@ class AnchorRepository(
         }
     }
 
+    /**
+     * Verifies and atomically consumes a one-time pairing code on behalf of an authenticated Child device,
+     * registering `families/{familyId}/pairedDevices/{childUid}` and marking the code `CONSUMED`.
+     */
+    suspend fun redeemPairingCode(
+        familyId: String,
+        codeId: String,
+        enteredCode: String,
+        childUid: String = auth.currentUser?.uid ?: "",
+        deviceName: String = "Galaxy A54 5G",
+        deviceModel: String = "Samsung SM-A546U",
+        osVersion: String = "Android 14"
+    ): PairedDevice {
+        val normalized = AndroidPlatformHelper.normalizePairingCode(enteredCode)
+            ?: throw IllegalArgumentException("Pairing code must be 6 digits (e.g., 482-915).")
+        val codePath = "families/$familyId/pairingCodes/$codeId"
+        val pairedPath = "families/$familyId/pairedDevices/$childUid"
+        val nowMs = System.currentTimeMillis()
+
+        try {
+            val codeSnap = db.document(codePath).get().await()
+            val codeObj = codeSnap.toObject(PairingCode::class.java)
+                ?: throw IllegalStateException("Pairing code not found.")
+
+            if (codeObj.revoked || codeObj.status == "REVOKED") {
+                throw SecurityException("This pairing code was revoked by the parent.")
+            }
+            if (codeObj.status == "CONSUMED") {
+                throw SecurityException("This pairing code has already been consumed.")
+            }
+            if (nowMs >= codeObj.expiresAtEpochMs) {
+                throw SecurityException("This pairing code has expired (10-minute window elapsed).")
+            }
+            if (codeObj.code != normalized) {
+                throw SecurityException("Invalid pairing code.")
+            }
+
+            val pairedDevice = PairedDevice(
+                id = childUid,
+                deviceId = childUid,
+                childUid = childUid,
+                familyId = familyId,
+                ownerUid = codeObj.ownerUid,
+                childId = codeObj.childId,
+                childName = codeObj.childName.ifBlank { "Child" },
+                codeId = codeId,
+                redeemedCode = normalized,
+                deviceName = deviceName,
+                deviceModel = deviceModel,
+                osVersion = osVersion,
+                status = "PAIRED",
+                pairedAtEpochMs = nowMs,
+                lastHeartbeatEpochMs = nowMs
+            )
+
+            // Execute atomic batch so pairedDevices creation validates against the active pairingCode,
+            // and pairingCode is simultaneously marked CONSUMED to prevent reuse.
+            val batch = db.batch()
+            batch.set(db.document(pairedPath), pairedDevice)
+            batch.update(
+                db.document(codePath),
+                mapOf(
+                    "status" to "CONSUMED",
+                    "consumedByChildUid" to childUid,
+                    "consumedAtEpochMs" to nowMs
+                )
+            )
+            batch.commit().await()
+            return pairedDevice
+        } catch (e: SecurityException) {
+            throw e
+        } catch (e: IllegalArgumentException) {
+            throw e
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.WRITE, pairedPath)
+            throw e
+        }
+    }
+
+    suspend fun getPairedDevices(familyId: String): List<PairedDevice> {
+        val path = "families/$familyId/pairedDevices"
+        return try {
+            val snap = db.collection(path).get().await()
+            snap.toObjects(PairedDevice::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
+        }
+    }
+
+    // ===============================================================
+    // Parental Policy & Family Subcollection Operations
+    // ===============================================================
     suspend fun upsertAppRule(rule: AppRule) {
         val path = "families/${rule.familyId}/appRules/${rule.ruleId}"
         try {
             db.document(path).set(rule).await()
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.WRITE, path)
+        }
+    }
+
+    suspend fun getAppRules(familyId: String): List<AppRule> {
+        val path = "families/$familyId/appRules"
+        return try {
+            db.collection(path).get().await().toObjects(AppRule::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
         }
     }
 
@@ -123,12 +298,32 @@ class AnchorRepository(
         }
     }
 
+    suspend fun getSchedules(familyId: String): List<ScheduleRoutine> {
+        val path = "families/$familyId/schedules"
+        return try {
+            db.collection(path).get().await().toObjects(ScheduleRoutine::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
+        }
+    }
+
     suspend fun upsertSafeGeofence(geofence: SafeGeofence) {
         val path = "families/${geofence.familyId}/geofences/${geofence.geofenceId}"
         try {
             db.document(path).set(geofence).await()
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.WRITE, path)
+        }
+    }
+
+    suspend fun getGeofences(familyId: String): List<SafeGeofence> {
+        val path = "families/$familyId/geofences"
+        return try {
+            db.collection(path).get().await().toObjects(SafeGeofence::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
         }
     }
 
@@ -150,12 +345,32 @@ class AnchorRepository(
         }
     }
 
+    suspend fun getAlerts(familyId: String): List<SafetyAlert> {
+        val path = "families/$familyId/alerts"
+        return try {
+            db.collection(path).get().await().toObjects(SafetyAlert::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
+        }
+    }
+
     suspend fun upsertChildRequest(request: ChildRequest) {
         val path = "families/${request.familyId}/requests/${request.requestId}"
         try {
             db.document(path).set(request).await()
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.WRITE, path)
+        }
+    }
+
+    suspend fun getRequests(familyId: String): List<ChildRequest> {
+        val path = "families/$familyId/requests"
+        return try {
+            db.collection(path).get().await().toObjects(ChildRequest::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
         }
     }
 
@@ -168,12 +383,32 @@ class AnchorRepository(
         }
     }
 
+    suspend fun getMessages(familyId: String): List<FamilyMessage> {
+        val path = "families/$familyId/messages"
+        return try {
+            db.collection(path).get().await().toObjects(FamilyMessage::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
+        }
+    }
+
     suspend fun upsertFamilyTask(task: FamilyTask) {
         val path = "families/${task.familyId}/tasks/${task.taskId}"
         try {
             db.document(path).set(task).await()
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.WRITE, path)
+        }
+    }
+
+    suspend fun getTasks(familyId: String): List<FamilyTask> {
+        val path = "families/$familyId/tasks"
+        return try {
+            db.collection(path).get().await().toObjects(FamilyTask::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
         }
     }
 
@@ -186,12 +421,76 @@ class AnchorRepository(
         }
     }
 
+    suspend fun getGuardians(familyId: String): List<GuardianContact> {
+        val path = "families/$familyId/guardians"
+        return try {
+            db.collection(path).get().await().toObjects(GuardianContact::class.java)
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.LIST, path)
+            emptyList()
+        }
+    }
+
     suspend fun upsertPremiumConfig(config: PremiumFilterConfig) {
         val path = "families/${config.familyId}/premiumConfigs/${config.configId}"
         try {
             db.document(path).set(config).await()
         } catch (e: Exception) {
             handleFirestoreError(e, OperationType.WRITE, path)
+        }
+    }
+
+    suspend fun upsertLiveSessionRequest(session: LiveSessionRequest) {
+        val path = "families/${session.familyId}/liveSessions/${session.sessionId}"
+        try {
+            db.document(path).set(session).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.WRITE, path)
+        }
+    }
+
+    // ===============================================================
+    // Paired Child Companion Telemetry & Sync Operations
+    // ===============================================================
+    suspend fun submitChildTelemetryUpdate(
+        familyId: String,
+        childId: String,
+        usedMinutesToday: Int,
+        batteryLevel: Int,
+        latitude: Double,
+        longitude: Double,
+        locationLabel: String,
+        lastSyncLabel: String = "Synced from Child Device just now"
+    ) {
+        val path = "families/$familyId/children/$childId"
+        try {
+            db.document(path).update(
+                mapOf(
+                    "usedMinutesToday" to usedMinutesToday,
+                    "batteryLevel" to batteryLevel,
+                    "latitude" to latitude,
+                    "longitude" to longitude,
+                    "locationLabel" to locationLabel,
+                    "lastSyncLabel" to lastSyncLabel,
+                    "syncStatus" to "ENFORCED"
+                )
+            ).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
+        }
+    }
+
+    suspend fun submitChildTaskCompletion(familyId: String, taskId: String) {
+        val path = "families/$familyId/tasks/$taskId"
+        try {
+            db.document(path).update(
+                mapOf(
+                    "completedByChild" to true,
+                    "status" to "READY_FOR_REVIEW"
+                )
+            ).await()
+        } catch (e: Exception) {
+            handleFirestoreError(e, OperationType.UPDATE, path)
         }
     }
 
@@ -205,10 +504,12 @@ class AnchorRepository(
         }
     }
 
+    // ===============================================================
+    // Real-Time Firestore Listeners (addSnapshotListener)
+    // ===============================================================
     fun observeChildren(familyId: String): Flow<List<ChildProfile>> = callbackFlow {
         val path = "families/$familyId/children"
-        val uid = auth.currentUser?.uid ?: ""
-        val registration = db.collection(path).whereEqualTo("ownerUid", uid).addSnapshotListener { snapshot, error ->
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 try {
                     handleFirestoreError(error, OperationType.LIST, path)
@@ -219,6 +520,150 @@ class AnchorRepository(
             }
             if (snapshot != null) {
                 trySend(snapshot.toObjects(ChildProfile::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observePairedDevices(familyId: String): Flow<List<PairedDevice>> = callbackFlow {
+        val path = "families/$familyId/pairedDevices"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(PairedDevice::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeAppRules(familyId: String): Flow<List<AppRule>> = callbackFlow {
+        val path = "families/$familyId/appRules"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(AppRule::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeSchedules(familyId: String): Flow<List<ScheduleRoutine>> = callbackFlow {
+        val path = "families/$familyId/schedules"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(ScheduleRoutine::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeGeofences(familyId: String): Flow<List<SafeGeofence>> = callbackFlow {
+        val path = "families/$familyId/geofences"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(SafeGeofence::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeAlerts(familyId: String): Flow<List<SafetyAlert>> = callbackFlow {
+        val path = "families/$familyId/alerts"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(SafetyAlert::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeRequests(familyId: String): Flow<List<ChildRequest>> = callbackFlow {
+        val path = "families/$familyId/requests"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(ChildRequest::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeMessages(familyId: String): Flow<List<FamilyMessage>> = callbackFlow {
+        val path = "families/$familyId/messages"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(FamilyMessage::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
+    fun observeTasks(familyId: String): Flow<List<FamilyTask>> = callbackFlow {
+        val path = "families/$familyId/tasks"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                try {
+                    handleFirestoreError(error, OperationType.LIST, path)
+                } catch (e: Exception) {
+                    close(e)
+                }
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(FamilyTask::class.java))
             }
         }
         awaitClose { registration.remove() }

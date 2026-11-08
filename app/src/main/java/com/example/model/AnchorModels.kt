@@ -58,6 +58,7 @@ data class ChildProfile(
     var childId: String = "",
     var familyId: String = "",
     var ownerUid: String = "",
+    var pairedChildUid: String = "",
     var name: String = "",
     var age: Int = 11,
     var gradeLabel: String = "6th Grade",
@@ -70,7 +71,7 @@ data class ChildProfile(
     var networkType: String = "Wi-Fi 6",
     var networkName: String = "Jenkins_Home_5G",
     var storageFreeGb: Double = 42.8,
-    var syncStatus: String = "ENFORCED", // ENFORCED, PENDING, FAILED, UNSUPPORTED
+    var syncStatus: String = "ENFORCED", // ENFORCED, PENDING, FAILED, UNSUPPORTED, QUEUED_OFFLINE, LOCAL_ONLY
     var lastSyncLabel: String = "Synced 12s ago",
     var usedMinutesToday: Int = 105,
     var dailyAllowanceMinutes: Int = 150,
@@ -94,8 +95,33 @@ data class PairingCode(
     var childName: String = "",
     var code: String = "482-915",
     var expiresAtEpochMs: Long = 0L,
-    var status: String = "ACTIVE", // ACTIVE, CONSUMED, EXPIRED
+    var status: String = "ACTIVE", // ACTIVE, CONSUMED, EXPIRED, REVOKED
+    var revoked: Boolean = false,
+    var attemptCount: Int = 0,
+    var maxAttempts: Int = 5,
+    var consumedByChildUid: String = "",
+    var consumedAtEpochMs: Long = 0L,
+    var revokedAtEpochMs: Long = 0L,
     @ServerTimestamp var createdAt: Timestamp? = null
+)
+
+data class PairedDevice(
+    @DocumentId var id: String = "",
+    var deviceId: String = "",
+    var childUid: String = "",
+    var familyId: String = "",
+    var ownerUid: String = "",
+    var childId: String = "",
+    var childName: String = "",
+    var codeId: String = "",
+    var redeemedCode: String = "",
+    var deviceName: String = "",
+    var deviceModel: String = "",
+    var osVersion: String = "",
+    var status: String = "PAIRED", // PAIRED, REVOKED
+    var pairedAtEpochMs: Long = 0L,
+    var lastHeartbeatEpochMs: Long = 0L,
+    @ServerTimestamp var updatedAt: Timestamp? = null
 )
 
 data class AppRule(
@@ -269,5 +295,20 @@ data class PremiumFilterConfig(
     var blockGamingStreakPrompts: Boolean = true,
     var allowLearningNotifications: Boolean = true,
     var liveSessionAuditCode: String = "#LIV-84920",
+    @ServerTimestamp var updatedAt: Timestamp? = null
+)
+
+data class LiveSessionRequest(
+    @DocumentId var id: String = "",
+    var sessionId: String = "",
+    var familyId: String = "",
+    var ownerUid: String = "",
+    var childId: String = "",
+    var auditCode: String = "#LIV-84920",
+    var mode: String = "Screen View",
+    var reason: String = "Checking homework progress & safety check-in",
+    var status: String = "AWAITING_CHILD_CONSENT", // AWAITING_CHILD_CONSENT, CONSENT_GRANTED, DECLINED_BY_CHILD, ENDED
+    var consentGranted: Boolean = false,
+    var requestedAtEpochMs: Long = 0L,
     @ServerTimestamp var updatedAt: Timestamp? = null
 )

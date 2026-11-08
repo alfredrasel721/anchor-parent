@@ -233,6 +233,7 @@ fun AnchorParentRoot(viewModel: AnchorParentViewModel) {
                         state = state,
                         onSelectChild = { viewModel.selectChild(it) },
                         onGenerateNewCode = { viewModel.generateNewPairingCode() },
+                        onRevokeCode = { viewModel.revokeCurrentPairingCode() },
                         onCopyCode = { viewModel.copyPairingCodeToClipboard(context) },
                         onShareInstructions = { viewModel.sharePairingInstructions(context) },
                         onFinishToDashboard = { viewModel.enterGuardianWorkspace(AnchorScreen.P04_FAMILY_DASHBOARD) }
@@ -281,7 +282,7 @@ fun AnchorParentRoot(viewModel: AnchorParentViewModel) {
                     AnchorScreen.P09_LOCATION_GEOFENCES -> P09LocationGeofencesScreen(
                         state = state,
                         onSelectChild = { viewModel.selectChild(it) },
-                        onPingGps = { viewModel.pingChildGps() },
+                        onPingGps = { viewModel.pingChildGps(context) },
                         onOpenDirections = { viewModel.openDirectionsToChild(context) },
                         onToggleGeofenceAlerts = { viewModel.toggleGeofenceAlerts(it) },
                         onAddGeofence = { n, r, s -> viewModel.addSafeGeofence(n, r, s) },

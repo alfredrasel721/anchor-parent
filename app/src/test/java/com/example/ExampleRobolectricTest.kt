@@ -18,31 +18,49 @@ class ExampleRobolectricTest {
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun parentApp_displaysWelcomeAndNavigatesToDashboardAndPremium() {
-        // Verify P-01 Welcome & Sign In screen loads with Anchor Parent branding
+    fun parentApp_displaysWelcomePairsDeviceNavigatesToDashboardAndUnlocksPremium() {
+        // 1. Verify P-01 Welcome & Sign In screen loads with Anchor Parent branding
         composeTestRule.onNodeWithText("Welcome & Sign In").assertIsDisplayed()
         composeTestRule.onNodeWithTag("google_sign_in_button")
             .performScrollTo()
             .assertIsDisplayed()
 
-        // Enter Guardian Workspace (P-04 Family Dashboard)
-        composeTestRule.onNodeWithTag("enter_guardian_workspace_button")
+        // 2. Open P-03 Pairing Screen from P-01 and test pairing code revocation & regeneration
+        composeTestRule.onNodeWithTag("quick_pair_child_button")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithText("Add Child & Pair Device").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("pairing_code_display")
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag("revoke_pairing_code_btn")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("refresh_pairing_code_btn")
+            .performScrollTo()
+            .performClick()
+
+        // 3. Proceed from P-03 Pairing Screen to P-04 Family Dashboard
+        composeTestRule.onNodeWithTag("go_to_dashboard_from_pairing_btn")
             .performScrollTo()
             .performClick()
 
         composeTestRule.onNodeWithText("Family Dashboard").assertIsDisplayed()
 
-        // Navigate from Dashboard Command Center to P-16 Web & Content Filters (Premium)
+        // 4. Navigate from Dashboard Command Center to P-16 Web & Content Filters (Premium)
         composeTestRule.onNodeWithTag("quick_link_P-16")
             .performScrollTo()
             .performClick()
 
-        // Verify Free tier shows the Premium Paywall Banner on P-16
+        // 5. Verify Free tier shows the Premium Paywall Banner on P-16
         composeTestRule.onNodeWithTag("premium_paywall_banner")
             .performScrollTo()
             .assertIsDisplayed()
 
-        // Unlock 14-Day Free Trial and verify Premium becomes active
+        // 6. Unlock 14-Day Free Trial and verify Premium becomes active
         composeTestRule.onNodeWithTag("instant_unlock_premium_trial_btn")
             .performScrollTo()
             .performClick()

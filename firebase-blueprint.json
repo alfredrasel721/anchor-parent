@@ -2,13 +2,13 @@
   "entities": {
     "UserProfile": {
       "title": "User Profile",
-      "description": "Authenticated Parent / Guardian profile document.",
+      "description": "Authenticated Parent / Guardian or Child user profile document.",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "description": "Firebase Auth UID." },
-        "displayName": { "type": "string", "description": "Full display name of guardian." },
-        "email": { "type": "string", "description": "Guardian email address." },
-        "role": { "type": "string", "enum": ["PRIMARY_GUARDIAN", "CO_PARENT", "TRUSTED_CONTACT"] },
+        "displayName": { "type": "string", "description": "Full display name." },
+        "email": { "type": "string", "description": "Email address." },
+        "role": { "type": "string", "enum": ["PRIMARY_GUARDIAN", "CO_PARENT", "TRUSTED_CONTACT", "CHILD_COMPANION"] },
         "familyId": { "type": "string", "description": "Associated household familyId." },
         "notificationCadence": { "type": "string", "description": "Notification cadence preference." },
         "createdAt": { "type": "string", "format": "date-time" },
@@ -41,6 +41,7 @@
         "childId": { "type": "string" },
         "familyId": { "type": "string" },
         "ownerUid": { "type": "string" },
+        "pairedChildUid": { "type": "string" },
         "name": { "type": "string" },
         "age": { "type": "integer" },
         "gradeLabel": { "type": "string" },
@@ -53,7 +54,7 @@
         "networkType": { "type": "string" },
         "networkName": { "type": "string" },
         "storageFreeGb": { "type": "number" },
-        "syncStatus": { "type": "string", "enum": ["ENFORCED", "PENDING", "FAILED", "UNSUPPORTED"] },
+        "syncStatus": { "type": "string", "enum": ["ENFORCED", "PENDING", "FAILED", "UNSUPPORTED", "QUEUED_OFFLINE", "LOCAL_ONLY"] },
         "lastSyncLabel": { "type": "string" },
         "usedMinutesToday": { "type": "integer" },
         "dailyAllowanceMinutes": { "type": "integer" },
@@ -81,9 +82,36 @@
         "childName": { "type": "string" },
         "code": { "type": "string" },
         "expiresAtEpochMs": { "type": "integer" },
-        "status": { "type": "string", "enum": ["ACTIVE", "CONSUMED", "EXPIRED"] }
+        "status": { "type": "string", "enum": ["ACTIVE", "CONSUMED", "EXPIRED", "REVOKED"] },
+        "revoked": { "type": "boolean" },
+        "attemptCount": { "type": "integer" },
+        "maxAttempts": { "type": "integer" },
+        "consumedByChildUid": { "type": "string" },
+        "consumedAtEpochMs": { "type": "integer" }
       },
       "required": ["codeId", "familyId", "ownerUid", "childId", "code", "status"]
+    },
+    "PairedDevice": {
+      "title": "Verified Paired Child Device Membership",
+      "description": "Server-verified pairing membership record linking an authenticated Child UID to a familyId and childId.",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string" },
+        "childUid": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "childName": { "type": "string" },
+        "codeId": { "type": "string" },
+        "redeemedCode": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "deviceModel": { "type": "string" },
+        "osVersion": { "type": "string" },
+        "status": { "type": "string", "enum": ["PAIRED", "REVOKED"] },
+        "pairedAtEpochMs": { "type": "integer" },
+        "lastHeartbeatEpochMs": { "type": "integer" }
+      },
+      "required": ["deviceId", "childUid", "familyId", "ownerUid", "childId", "codeId", "redeemedCode", "status", "pairedAtEpochMs"]
     },
     "AppRule": {
       "title": "App Usage & Limit Rule",
@@ -263,12 +291,30 @@
         "liveSessionAuditCode": { "type": "string" }
       },
       "required": ["configId", "familyId", "ownerUid", "childId", "webFilterProfile", "socialShieldProfile"]
+    },
+    "LiveSessionRequest": {
+      "title": "Audited Live Check-In Session Signaling",
+      "description": "Explicit child-consent signaling record for live screen, camera, or audio safety check-in.",
+      "type": "object",
+      "properties": {
+        "sessionId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "auditCode": { "type": "string" },
+        "mode": { "type": "string" },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["AWAITING_CHILD_CONSENT", "CONSENT_GRANTED", "DECLINED_BY_CHILD", "ENDED"] },
+        "consentGranted": { "type": "boolean" },
+        "requestedAtEpochMs": { "type": "integer" }
+      },
+      "required": ["sessionId", "familyId", "ownerUid", "childId", "auditCode", "mode", "reason", "status", "consentGranted"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserProfile" },
-      "description": "Guardian profile indexed by Auth UID."
+      "description": "Guardian or child profile indexed by Auth UID."
     },
     "/families/{familyId}": {
       "schema": { "$ref": "#/entities/FamilyHousehold" },
@@ -281,6 +327,10 @@
     "/families/{familyId}/pairingCodes/{codeId}": {
       "schema": { "$ref": "#/entities/PairingCode" },
       "description": "Temporary child device pairing codes."
+    },
+    "/families/{familyId}/pairedDevices/{deviceId}": {
+      "schema": { "$ref": "#/entities/PairedDevice" },
+      "description": "Verified paired child devices."
     },
     "/families/{familyId}/appRules/{ruleId}": {
       "schema": { "$ref": "#/entities/AppRule" },
@@ -317,6 +367,10 @@
     "/families/{familyId}/premiumConfigs/{configId}": {
       "schema": { "$ref": "#/entities/PremiumFilterConfig" },
       "description": "Premium web, social, notification, and live session policies."
+    },
+    "/families/{familyId}/liveSessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/LiveSessionRequest" },
+      "description": "Audited live check-in session signaling requiring explicit child consent."
     }
   }
 }

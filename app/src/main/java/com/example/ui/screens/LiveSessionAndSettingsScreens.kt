@@ -280,12 +280,12 @@ fun P19LiveSessionViewerScreen(
                             color = StatusEnforced
                         )
                         Text(
-                            text = "${child.name} approved this session on ${child.deviceName}. Persistent Android foreground indicator is visible to child.",
+                            text = "Live check-ins require ${child.name}'s explicit on-device consent on ${child.deviceName}. A persistent Android foreground indicator is always shown.",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
-                StatusBadge(if (state.liveSessionActive) "LIVE 07:42" else "ENDED")
+                StatusBadge(state.liveSessionConsentStatus)
             }
         }
 
@@ -339,7 +339,7 @@ fun P19LiveSessionViewerScreen(
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White
                     )
-                    StatusBadge(if (state.liveSessionActive) "CONSENT ACTIVE" else "STANDBY")
+                    StatusBadge(state.liveSessionConsentStatus)
                 }
 
                 // Viewport Canvas
@@ -355,7 +355,7 @@ fun P19LiveSessionViewerScreen(
                         val bars = 24
                         val barW = size.width / (bars * 1.8f)
                         for (i in 0 until bars) {
-                            val ratio = if (state.liveSessionActive) {
+                            val ratio = if (state.liveSessionConsentStatus == "CONSENT_GRANTED") {
                                 0.2f + 0.6f * kotlin.math.abs(kotlin.math.sin((i + 1) * 0.55f))
                             } else {
                                 0.08f
@@ -374,10 +374,11 @@ fun P19LiveSessionViewerScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = if (state.liveSessionActive) {
-                                "Active Mode: ${state.liveSessionMode}"
-                            } else {
-                                "Live Session Ended"
+                            text = when (state.liveSessionConsentStatus) {
+                                "AWAITING_CHILD_CONSENT" -> "Awaiting Child Consent (${state.liveSessionMode})"
+                                "CONSENT_GRANTED" -> "Active Stream: ${state.liveSessionMode}"
+                                "ENDED" -> "Live Session Ended"
+                                else -> "Standby — No Active Media Stream"
                             },
                             style = MaterialTheme.typography.titleLarge,
                             color = Color.White
@@ -390,7 +391,7 @@ fun P19LiveSessionViewerScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Hardware Note: Real-time WebRTC MediaProjection / CameraX / AudioRecord streaming requires a paired physical Child Companion device and signaling relay.",
+                            text = "Privacy & Hardware Guarantee: No simulated camera/mic/screen feed is shown. Live media streaming starts only after the paired Child Companion device accepts the consent prompt and establishes a WebRTC track.",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White.copy(alpha = 0.72f)
                         )
@@ -427,7 +428,7 @@ fun P19LiveSessionViewerScreen(
                     ) {
                         Icon(Icons.Default.CallEnd, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (state.liveSessionActive) "End Session Now" else "Start Audited Check")
+                        Text(if (state.liveSessionActive) "End Request / Session" else "Request Audited Check")
                     }
                 }
             }
@@ -480,7 +481,7 @@ fun P20AccountSettingsDiagnosticsScreen(
                     StatusBadge(state.familyHousehold.subscriptionTier)
                 }
                 Text(
-                    text = "Licensed Child Devices: ${state.children.size} / 5 Household Slots Active",
+                    text = "Licensed Child Profiles: ${state.children.size} / 5 • Verified Paired Devices: ${state.pairedDevices.size}",
                     style = MaterialTheme.typography.labelLarge,
                     color = AnchorPrimary
                 )
@@ -517,10 +518,10 @@ fun P20AccountSettingsDiagnosticsScreen(
                     Text("Real-Time Pipeline Health & Diagnostics", style = MaterialTheme.typography.titleMedium)
                 }
 
-                PipelineRow("Firebase Firestore Enterprise DB", if (state.isCloudConnected) "ENFORCED" else "PENDING")
-                PipelineRow("Room SQLite Offline Policy Cache", "ENFORCED")
+                PipelineRow("Shared Firestore DB (anchorpa-a481c5e6)", if (state.isCloudConnected) "ENFORCED" else "LOCAL_ONLY")
+                PipelineRow("Room SQLite Offline Queue (${state.pendingOfflineSyncCount} pending)", "ENFORCED")
                 PipelineRow("Emergency SOS High-Priority Channel", "ENFORCED")
-                PipelineRow("Samsung Knox & Accessibility Attestation", "VERIFIED")
+                PipelineRow("Paired Child Handshake Attestation", if (state.pairedDevices.isNotEmpty()) "VERIFIED" else "PENDING")
 
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerLow,

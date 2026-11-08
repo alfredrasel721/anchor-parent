@@ -1,0 +1,13 @@
+{
+  "name": "anchor-family-functions",
+  "version": "1.0.0",
+  "description": "Firebase Cloud Functions (Admin SDK) for Anchor Family Parent-Child Secure Pairing & Synchronization",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0"
+  }
+}

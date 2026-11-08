@@ -605,12 +605,15 @@ fun P03AddChildPairCodeScreen(
     state: AnchorUiState,
     onSelectChild: (String) -> Unit,
     onGenerateNewCode: () -> Unit,
+    onRevokeCode: () -> Unit = {},
     onCopyCode: () -> Unit,
     onShareInstructions: () -> Unit,
     onFinishToDashboard: () -> Unit
 ) {
     var showQrMatrix by remember { mutableStateOf(false) }
     val selectedChild = state.selectedChild
+    val isCodeRevoked = state.pairingCode.revoked || state.pairingCode.status == "REVOKED"
+    val isCodeConsumed = state.pairingCode.status == "CONSUMED"
 
     Column(
         modifier = Modifier
@@ -654,7 +657,13 @@ fun P03AddChildPairCodeScreen(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
-                    StatusBadge("VALID 9m 44s")
+                    StatusBadge(
+                        when {
+                            isCodeRevoked -> "REVOKED"
+                            isCodeConsumed -> "CONSUMED"
+                            else -> "VALID 10M TTL"
+                        }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -714,20 +723,25 @@ fun P03AddChildPairCodeScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = state.pairingCode.code,
+                                text = if (isCodeRevoked) "REVOKED" else state.pairingCode.code,
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontSize = 42.sp,
                                     letterSpacing = 6.sp,
                                     fontWeight = FontWeight.ExtraBold
                                 ),
-                                color = AnchorPrimary,
+                                color = if (isCodeRevoked) MaterialTheme.colorScheme.error else AnchorPrimary,
                                 modifier = Modifier.testTag("pairing_code_display")
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "One-Time Cryptographic Token • Target: ${selectedChild.deviceName}",
+                                text = if (isCodeRevoked) {
+                                    "Code invalidated by Guardian • Tap 'New Code' to issue a fresh token"
+                                } else {
+                                    "One-Time Cryptographic Token (10-min TTL) • Target: ${selectedChild.deviceName}"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -777,13 +791,14 @@ fun P03AddChildPairCodeScreen(
                 ) {
                     OutlinedButton(
                         onClick = onCopyCode,
+                        enabled = !isCodeRevoked,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("copy_pairing_code_btn")
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Copy Code")
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Copy")
                     }
                     OutlinedButton(
                         onClick = onGenerateNewCode,
@@ -792,8 +807,17 @@ fun P03AddChildPairCodeScreen(
                             .testTag("refresh_pairing_code_btn")
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text("New Code")
+                    }
+                    OutlinedButton(
+                        onClick = onRevokeCode,
+                        enabled = !isCodeRevoked,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("revoke_pairing_code_btn")
+                    ) {
+                        Text("Revoke", color = MaterialTheme.colorScheme.error)
                     }
                 }
 
@@ -801,6 +825,7 @@ fun P03AddChildPairCodeScreen(
 
                 Button(
                     onClick = onShareInstructions,
+                    enabled = !isCodeRevoked,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("share_pairing_link_btn"),
@@ -809,6 +834,50 @@ fun P03AddChildPairCodeScreen(
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Share Pairing Invite via Android Share Sheet")
+                }
+            }
+        }
+
+        // Verified Paired Child Devices Status Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Server-Verified Paired Child Devices (${state.pairedDevices.size})",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (state.pairedDevices.isEmpty()) {
+                    Text(
+                        text = "No Child Companion device has completed server-verified pairing yet. Enter code ${state.pairingCode.code} in Anchor Child to verify.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    state.pairedDevices.forEach { dev ->
+                        Surface(
+                            color = StatusEnforcedBg,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("${dev.childName} • ${dev.deviceName}", style = MaterialTheme.typography.titleSmall)
+                                    Text("UID: ${dev.childUid} • Code: ${dev.redeemedCode}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                StatusBadge(dev.status)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -854,3 +923,4 @@ fun P03AddChildPairCodeScreen(
         }
     }
 }
+
