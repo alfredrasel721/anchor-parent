@@ -1,0 +1,612 @@
+You are an expert autonomous Android application engineer, product architect, Firebase specialist, UI implementation engineer, and QA engineer.
+
+Your mission is to transform my existing Google Stitch designs into a complete, functional Android Parental Control Platform.
+
+I have ALREADY designed the application interfaces in Google Stitch. These designs are your primary visual reference.
+
+I do not want a static prototype, decorative interface, website, or demonstration-only application. I want real, installable Android applications with functional business logic, secure data synchronization, device permissions, authentication, parental controls, subscriptions, and appropriate testing.
+
+PROJECT OBJECTIVE
+
+Create TWO SEPARATE native Android applications:
+
+1. Parent App — for parents and authorized guardians.
+2. Child App — for supervised Android devices.
+
+Both applications must communicate through the SAME Firebase project and share the same family accounts, child profiles, permissions, synchronized rules, notifications, subscription entitlements, and authorized records.
+
+They must remain independently installable Android applications with separate application identifiers.
+
+IMPORTANT AI STUDIO WORKFLOW
+
+Google AI Studio may support only one Android application project per build.
+
+Therefore, use this single master specification for BOTH builds.
+
+When the imported Stitch design represents the Parent App, build the complete Parent App.
+
+When the imported Stitch design represents the Child App, build the complete Child App.
+
+Use the same Firebase project, data model, authorization boundaries, naming conventions, and communication contracts across both builds.
+
+Never combine both apps into a single role-switching application as a substitute for two independent APKs.
+
+If the current project is a web application generated from Stitch, convert or recreate the corresponding design as a genuine native Android application rather than treating a mobile website as an APK.
+
+1. DESIGN IMPLEMENTATION
+
+Analyze every imported Stitch screen, navigation flow, component, visual state, and design element.
+
+Preserve the original designs as closely as possible, including:
+
+- Colors and typography.
+- Spacing and alignment.
+- Cards, buttons, icons and illustrations.
+- Navigation structure.
+- Screen hierarchy.
+- Forms and input fields.
+- Dialogs and bottom sheets.
+- Charts and progress indicators.
+- Loading, success and error states.
+- Light and dark themes where designed.
+- Responsive layouts for Android phones and tablets.
+
+Implement the application using Kotlin, Jetpack Compose and Material 3.
+
+Do not unnecessarily redesign screens.
+
+If a required functional screen is missing from Stitch, create it using the same design language and visual components.
+
+Every visible button, menu, form, action, switch, filter and navigation element must perform a meaningful, working operation.
+
+2. AUTHENTICATION AND FAMILY MANAGEMENT — FREE
+
+Implement:
+
+- Parent registration and secure login.
+- Email verification.
+- Password recovery.
+- Account settings and account deletion.
+- Family creation and management.
+- Multiple child profiles.
+- Child-device registration and pairing.
+- Secure pairing through temporary codes or QR codes.
+- Multiple children and multiple Android devices.
+- Guardian invitations and permissions.
+- Primary and secondary guardian roles.
+- Read-only and limited guardian permissions.
+- Trusted and emergency contacts.
+- Guardian permission revocation.
+- Family-device relationship management.
+- Secure unpairing and device replacement.
+- Session management.
+- Role-based access control.
+- Family-specific data isolation.
+
+A guardian must never access an unrelated family's information.
+
+3. PARENT APPLICATION — FREE FEATURES
+
+Implement the following capabilities:
+
+DASHBOARD AND ACTIVITY
+
+- Family dashboard.
+- Child selection and device switching.
+- Device online/offline indicators.
+- Last synchronization time.
+- Device battery level where available.
+- Daily, weekly and monthly activity reports.
+- Total screen-time statistics.
+- Application-usage breakdown.
+- Screen-time trends and charts.
+- Usage history and reports.
+- Family goals and report export.
+
+SCREEN-TIME CONTROL
+
+- Daily screen-time limits.
+- Individual application time limits.
+- Application blocking and unblocking.
+- Application category grouping.
+- Scheduled restrictions.
+- Bedtime schedules.
+- School-time schedules.
+- Homework and focus modes.
+- Custom schedules.
+- Temporary device restrictions.
+- Extra-time approval and rejection.
+- Emergency application exceptions.
+- Parent-defined application allowlists.
+- Available installation and purchase approval controls.
+- Reward-based screen-time extensions.
+
+LOCATION AND SAFETY
+
+- Authorized child location tracking.
+- Location update time and accuracy indicators.
+- Location history.
+- Location route visualization.
+- Safe-zone creation.
+- Geofencing.
+- Arrival and departure notifications.
+- SOS alerts.
+- Emergency contact notifications.
+- Child check-in requests.
+- Remote device ringing where supported.
+- Driving-related safety summaries where supported.
+- Low-battery alerts.
+- Device-offline alerts.
+- Permission-loss alerts.
+
+COMMUNICATION AND FAMILY ACTIVITIES
+
+- Parent-child messaging.
+- Voice messages.
+- Child requests and approvals.
+- Chores and family tasks.
+- Task completion review.
+- Rewards and achievements.
+- Learning and healthy-habit goals.
+- Family notification settings.
+
+ADDITIONAL MONITORING
+
+- Browser activity summaries where legitimately available.
+- Search and YouTube activity summaries where supported.
+- General device safety reports.
+- Device health and connectivity reports.
+- Supported call and SMS activity or contact controls, strictly within current Android permissions and applicable policy.
+- Risk alerts from data legitimately available to the application.
+
+Do not use restricted, hidden or unauthorized methods to obtain information.
+
+Do not charge users for any feature in this section.
+
+4. CHILD APPLICATION — FREE FEATURES
+
+The Child App is a separate Android application.
+
+Implement:
+
+- Child-friendly onboarding.
+- Secure parent-device pairing.
+- Clear parental-supervision explanation.
+- Permission setup guidance.
+- Today's screen-time usage.
+- Remaining screen-time allowance.
+- Visible application restrictions.
+- Current restriction schedules.
+- Upcoming bedtime or study-mode reminders.
+- Screen-time expiration warnings.
+- Explanation of blocked applications.
+- Request additional screen time.
+- Request access to restricted applications.
+- Receive approval and rejection notifications.
+- Child safety dashboard.
+- SOS emergency button.
+- Emergency call access.
+- Child location check-in.
+- "I'm safe" confirmation.
+- "I've arrived" notification.
+- "Need pickup" request.
+- Parent-child messaging.
+- Family voice messages.
+- Task and chore lists.
+- Task completion submission.
+- Rewards and earned screen time.
+- Healthy device-usage reminders.
+- Eye-care and break reminders.
+- Learning and habit activities.
+- Personal activity summaries.
+- Device battery and connection status.
+- Synchronization status.
+- Visible permission status.
+- Privacy and supervision information.
+- Authorized parent-managed settings.
+- Child-accessible help and safety reporting.
+- Offline behavior and safe reconnection.
+- Clear error and recovery messages.
+
+Emergency features must remain accessible during ordinary screen-time restrictions.
+
+5. SUBSCRIPTION AND PREMIUM RULES
+
+The platform has TWO plans:
+
+FREE and PREMIUM.
+
+All features are FREE except the following SIX Premium feature groups:
+
+1. Screen mirroring and live screen viewing.
+2. Live camera access.
+3. Live microphone audio.
+4. Notification filtering.
+5. Website and web-content filtering.
+6. Social-media content filtering.
+
+This rule is mandatory.
+
+All other listed capabilities, including advanced but non-Premium features, must remain FREE.
+
+IMPORTANT DISTINCTIONS
+
+Normal application blocking is FREE.
+
+Application time limits are FREE.
+
+Screen-time restrictions are FREE.
+
+General activity reports are FREE.
+
+Location and geofencing are FREE.
+
+SOS and family communication are FREE.
+
+Application-level blocking of social-media apps is FREE.
+
+Filtering specific social-media content, where legally and technically supported, is PREMIUM.
+
+Blocking or filtering website content is PREMIUM.
+
+Ordinary safety alerts and notifications generated by our own applications are FREE.
+
+Premium notification filtering concerns supported controls over notifications from other applications, not ordinary app notifications.
+
+PREMIUM SYSTEM
+
+Implement:
+
+- Free and Premium entitlement states.
+- Premium upgrade screen.
+- Subscription purchase flow.
+- Google Play Billing integration.
+- Subscription restoration.
+- Subscription expiration handling.
+- Cancellation handling.
+- Grace-period handling.
+- Server-validated entitlements.
+- Family-level subscription entitlement.
+- Premium status synchronization.
+- Secure Premium access checks.
+
+The Parent App manages purchases.
+
+The Child App must never independently purchase subscriptions.
+
+Do not unlock Premium features by changing only local interface state.
+
+Do not require subscriptions for Free features.
+
+6. PREMIUM SENSITIVE CAPABILITIES
+
+SCREEN MIRRORING
+
+Where Android permits, implement live screen sharing between the Child and Parent applications.
+
+Require explicit child-side approval and Android system authorization for each required session.
+
+Display a persistent visible sharing indicator.
+
+Provide a child-accessible stop control.
+
+Respect Android screen-capture restrictions and protected content.
+
+LIVE CAMERA
+
+Provide a live camera communication session only after appropriate device permissions and clear child-side participation.
+
+Show visible camera indicators and active-session status.
+
+Provide accept, reject, and stop controls.
+
+Never silently activate a camera.
+
+LIVE AUDIO
+
+Provide a live audio communication session with appropriate microphone permission, visible activity indication, and child-side participation.
+
+Do not implement covert environmental listening or unauthorized recording.
+
+NOTIFICATION FILTERING
+
+Implement notification categories, parent-configured rules, permitted notification classification, and supported notification suppression or filtering capabilities.
+
+Request the required Android notification-access permission.
+
+Do not assume unrestricted access to every application's notifications.
+
+Do not collect sensitive authentication codes or other protected notification content.
+
+WEBSITE FILTERING
+
+Implement supported domain and category filtering, custom allowlists and blocklists, safe-browsing controls, and rule synchronization.
+
+Use supported Android network or browser-level capabilities.
+
+Avoid unauthorized HTTPS interception or security bypasses.
+
+SOCIAL-MEDIA CONTENT FILTERING
+
+Implement only the content-safety checks that are legitimately accessible through supported Android capabilities or authorized integrations.
+
+Provide configurable risk categories, safety alerts, and clear parental settings.
+
+Do not claim unrestricted access to private or encrypted third-party conversations.
+
+If a particular social platform does not expose sufficient information, report that limitation and retain supported application-level controls.
+
+PREMIUM SAFETY REQUIREMENTS
+
+Premium payment never replaces permission or consent requirements.
+
+Sensitive live sessions must be disclosed and appropriately authorized.
+
+Never create hidden recordings, invisible monitoring sessions, unauthorized remote activation, or privacy-control bypasses.
+
+If Android prohibits a requested feature, do not fabricate a working implementation.
+
+7. FIREBASE AND DATA SYNCHRONIZATION
+
+Use a shared Firebase project for both applications.
+
+Integrate, where supported:
+
+- Firebase Authentication.
+- Cloud Firestore.
+- Firebase Cloud Messaging.
+- Firebase App Check.
+- Firebase Storage where necessary.
+- Appropriate server-side services for privileged operations.
+
+Implement shared records for:
+
+- Families and guardians.
+- Child profiles.
+- Paired devices.
+- Device permissions.
+- Screen-time rules.
+- Application restrictions.
+- Schedule rules.
+- Device activity summaries.
+- Location updates.
+- Geofences.
+- Safety alerts.
+- Child requests.
+- Family messages.
+- Tasks and rewards.
+- Subscription entitlements.
+- Consent records.
+- Session records.
+- Audit events.
+
+Both applications must synchronize the same authorized records.
+
+Parent changes must be delivered to the correct Child App.
+
+The Child App must report whether a rule was actually applied.
+
+Do not display a restriction as active merely because it was saved to the database.
+
+Handle offline operation, retries, disconnections, duplicate events and synchronization conflicts.
+
+Use strict database security rules.
+
+Never trust a child-controlled application to grant its own Premium access or change guardian permissions.
+
+If privileged server functionality cannot be built directly within the current AI Studio Android environment, clearly identify the required server component rather than pretending it is complete.
+
+8. ANDROID DEVICE FUNCTIONALITY
+
+Use officially supported Android capabilities and permission flows.
+
+Implement appropriate mechanisms for:
+
+- Usage statistics.
+- Device-state monitoring.
+- Application inventory where allowed.
+- Permitted application restrictions.
+- Notification access where needed.
+- Location services.
+- Background synchronization.
+- Foreground services.
+- Battery and connectivity events.
+- Permitted device administration.
+- Secure local storage.
+- Offline rule evaluation.
+- Android-compatible background operations.
+
+Respect differences between Android versions and device manufacturers.
+
+Do not assume that a normal consumer application has unrestricted device-owner privileges.
+
+Clearly identify restrictions that require special enrollment, unsupported privileges, or manual device configuration.
+
+Never request unnecessary permissions.
+
+Provide a permission explanation before directing users to Android settings.
+
+When permission is denied, revoked or unavailable, display the real feature status and a recovery option.
+
+9. OTHER USER ROLES AND SERVICES
+
+SECONDARY GUARDIANS
+
+Support invited guardians with specific permissions, shared family information, child requests, alert access, and auditable changes.
+
+EMERGENCY CONTACTS
+
+Support verified emergency contacts, SOS delivery, emergency acknowledgment where available, and limited emergency-location sharing.
+
+INTERNAL ADMINISTRATION
+
+Provide the necessary secure backend operational capabilities for account support, entitlement management, privacy requests, abuse reports, diagnostics, retention management and incident handling.
+
+Do not introduce a third customer-facing application.
+
+Administrative staff must not have unrestricted access to private child information.
+
+OPTIONAL INTEGRATIONS
+
+Support compatible external GPS devices and services only where technically feasible, without introducing an additional Wear OS application.
+
+Any optional supported functionality outside the six Premium groups must remain Free.
+
+10. SECURITY, PRIVACY AND CHILD SAFETY
+
+Implement:
+
+- Secure authentication.
+- Strict authorization checks.
+- Encryption in transit and at rest.
+- Least-privilege permissions.
+- Family data isolation.
+- Secure device pairing.
+- Appropriate parental authorization.
+- Age-appropriate disclosures.
+- Visible supervision indicators.
+- Child privacy information.
+- Consent and authorization records.
+- Secure account recovery.
+- Sensitive-data minimization.
+- Retention and deletion controls.
+- Abuse reporting.
+- Prevention of unauthorized family tracking.
+- Protection against unauthorized adult surveillance.
+- Auditable guardian actions.
+- Safe permission revocation.
+- Emergency access safeguards.
+
+Comply with applicable Android privacy requirements and Google Play monitoring-app policies, including required monitoring disclosures and applicable policy declarations.
+
+Do not bypass Android security controls, hide surveillance behavior, or misrepresent monitoring capabilities.
+
+11. QUALITY AND RELIABILITY
+
+Every feature must have meaningful behavior and appropriate error handling.
+
+Implement:
+
+- Loading states.
+- Empty states.
+- Success confirmations.
+- Validation errors.
+- Network error handling.
+- Offline handling.
+- Permission-denied states.
+- Device-disconnected states.
+- Synchronization failure handling.
+- Session-expiration handling.
+- Accessibility support.
+- Responsive Android interfaces.
+- Appropriate battery and network efficiency.
+- Secure logs without unnecessary private information.
+
+Never display fabricated production data as if it came from a real child device.
+
+Demonstration data may be used only in an explicitly labeled demo or test mode.
+
+12. IMPLEMENTATION PROCESS
+
+Work systematically within the available AI Studio project.
+
+First, inspect the imported Stitch designs and identify the application role.
+
+Next, inventory the screens, navigation, missing interactions, and relevant features.
+
+Then implement the foundation, authentication, shared data model, and Firebase connection.
+
+Implement Free functionality before Premium functionality.
+
+Implement secure subscription entitlements before enabling Premium capabilities.
+
+Develop the Android permission flows and supported local device functionality.
+
+Connect user interfaces to real application state and actual data.
+
+Test navigation, inputs, permissions, rules, synchronization, subscriptions, and error states.
+
+Fix build errors and verified failures.
+
+Continue implementing unblocked requirements without stopping after producing a basic prototype.
+
+Do not replace complex functionality with decorative buttons or unannounced mock behavior.
+
+Do not silently remove requirements because they are difficult.
+
+For unsupported requirements, state the precise Android, service, permission, or policy restriction.
+
+Respect the environment's limitations rather than claiming work has been performed when it has not.
+
+13. TESTING AND ACCEPTANCE
+
+Verify, as applicable:
+
+- Successful application build.
+- Authentication.
+- Family setup.
+- Parent-child pairing.
+- Separate device identity.
+- Real device registration.
+- Parent-to-child rule synchronization.
+- Child-to-parent activity synchronization.
+- Screen-time calculations.
+- Restriction behavior.
+- Location permissions and updates.
+- SOS delivery.
+- Requests and approvals.
+- Offline and reconnection behavior.
+- Guardian authorization boundaries.
+- Free/Premium access boundaries.
+- Subscription validation.
+- Sensitive-session approval and termination.
+- Permission revocation.
+- Data isolation.
+- Account deletion and recovery.
+
+Use the available emulator and physical-device testing capabilities.
+
+Clearly distinguish automated tests, emulator tests, actual-device tests, and functionality requiring additional manual verification.
+
+Do not declare a feature production-ready without corresponding evidence.
+
+14. REQUIRED FINAL OUTPUT
+
+For each application, deliver:
+
+- A complete native Android project.
+- An independently installable Android build where supported.
+- All implemented Stitch screens.
+- Functional navigation and state management.
+- Firebase integration.
+- Shared family-data compatibility.
+- Implemented Free features.
+- Implemented applicable Premium features.
+- Secure permission handling.
+- Appropriate automated tests.
+- A feature completion summary.
+- Known Android limitations.
+- Remaining external configuration requirements.
+- Instructions for installing and testing the application.
+
+Keep the Parent App and Child App independently installable.
+
+Ensure both builds are designed to connect securely to the same family backend.
+
+Do not claim a completed backend, working billing system, or tested device restriction unless it has actually been configured and verified.
+
+FINAL INSTRUCTION
+
+This is a real parental-control product, not a UI demonstration.
+
+Use my Google Stitch design as the visual source of truth and this prompt as the functional product specification.
+
+Start implementing the native Android application represented by the currently imported Stitch design.
+
+Preserve the same shared platform specification for the other Android application.
+
+Proceed through design implementation, functionality, integration, testing and error correction as far as the available environment permits.
+
+Ask for user intervention only when an external account connection, credential, payment approval, Android permission, security decision or another genuinely blocked action requires it.
+
+Build the most complete, functional, secure and verifiable application possible.

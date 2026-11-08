@@ -1,0 +1,322 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Authenticated Parent / Guardian profile document.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "Full display name of guardian." },
+        "email": { "type": "string", "description": "Guardian email address." },
+        "role": { "type": "string", "enum": ["PRIMARY_GUARDIAN", "CO_PARENT", "TRUSTED_CONTACT"] },
+        "familyId": { "type": "string", "description": "Associated household familyId." },
+        "notificationCadence": { "type": "string", "description": "Notification cadence preference." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "role", "familyId"]
+    },
+    "FamilyHousehold": {
+      "title": "Family Household",
+      "description": "Root household container managing subscription tier, guardians, and children.",
+      "type": "object",
+      "properties": {
+        "familyId": { "type": "string" },
+        "familyName": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "subscriptionTier": { "type": "string", "enum": ["FREE", "PREMIUM_ANNUAL", "PREMIUM_MONTHLY"] },
+        "subscriptionActive": { "type": "boolean" },
+        "autoApproveLearningApps": { "type": "boolean" },
+        "fairPlayNoticeMinutes": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["familyId", "familyName", "ownerUid", "subscriptionTier", "subscriptionActive"]
+    },
+    "ChildProfile": {
+      "title": "Child Profile & Device Telemetry",
+      "description": "Child profile, paired device telemetry, and daily screen allowance state.",
+      "type": "object",
+      "properties": {
+        "childId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "name": { "type": "string" },
+        "age": { "type": "integer" },
+        "gradeLabel": { "type": "string" },
+        "avatarInitials": { "type": "string" },
+        "deviceName": { "type": "string" },
+        "deviceModel": { "type": "string" },
+        "osVersion": { "type": "string" },
+        "batteryLevel": { "type": "integer" },
+        "chargingStatus": { "type": "string" },
+        "networkType": { "type": "string" },
+        "networkName": { "type": "string" },
+        "storageFreeGb": { "type": "number" },
+        "syncStatus": { "type": "string", "enum": ["ENFORCED", "PENDING", "FAILED", "UNSUPPORTED"] },
+        "lastSyncLabel": { "type": "string" },
+        "usedMinutesToday": { "type": "integer" },
+        "dailyAllowanceMinutes": { "type": "integer" },
+        "currentMode": { "type": "string" },
+        "locationLabel": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "knoxVerified": { "type": "boolean" },
+        "accessibilityEnabled": { "type": "boolean" },
+        "deviceAdminEnabled": { "type": "boolean" },
+        "policyPausedUntil": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["childId", "familyId", "ownerUid", "name", "age", "dailyAllowanceMinutes", "usedMinutesToday"]
+    },
+    "PairingCode": {
+      "title": "Child Device Pairing Code",
+      "description": "Short-lived 6-digit pairing code and QR payload for linking a child device.",
+      "type": "object",
+      "properties": {
+        "codeId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "childName": { "type": "string" },
+        "code": { "type": "string" },
+        "expiresAtEpochMs": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ACTIVE", "CONSUMED", "EXPIRED"] }
+      },
+      "required": ["codeId", "familyId", "ownerUid", "childId", "code", "status"]
+    },
+    "AppRule": {
+      "title": "App Usage & Limit Rule",
+      "description": "Per-app or category usage cap and blocking policy.",
+      "type": "object",
+      "properties": {
+        "ruleId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "packageName": { "type": "string" },
+        "appName": { "type": "string" },
+        "category": { "type": "string" },
+        "dailyLimitMinutes": { "type": "integer" },
+        "usedMinutesToday": { "type": "integer" },
+        "status": { "type": "string", "enum": ["ENFORCED", "PENDING", "SCHEDULE_ONLY", "WHITELISTED", "BLOCKED"] },
+        "blocked": { "type": "boolean" },
+        "whitelisted": { "type": "boolean" },
+        "scheduleOnly": { "type": "boolean" }
+      },
+      "required": ["ruleId", "familyId", "ownerUid", "childId", "packageName", "appName", "category", "dailyLimitMinutes", "status"]
+    },
+    "ScheduleRoutine": {
+      "title": "Schedule & Downtime Routine",
+      "description": "Recurring downtime, school hours, or bedtime schedule.",
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "title": { "type": "string" },
+        "windowDescription": { "type": "string" },
+        "daysSummary": { "type": "string" },
+        "ruleSummary": { "type": "string" },
+        "iconType": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "syncStatus": { "type": "string" }
+      },
+      "required": ["scheduleId", "familyId", "ownerUid", "childId", "title", "windowDescription", "enabled"]
+    },
+    "SafeGeofence": {
+      "title": "Safe Zone Geofence",
+      "description": "Geographic boundary with entry/exit alert triggers.",
+      "type": "object",
+      "properties": {
+        "geofenceId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "name": { "type": "string" },
+        "radiusMeters": { "type": "integer" },
+        "triggerSummary": { "type": "string" },
+        "scheduleSummary": { "type": "string" },
+        "activeInside": { "type": "boolean" },
+        "alertsEnabled": { "type": "boolean" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" }
+      },
+      "required": ["geofenceId", "familyId", "ownerUid", "childId", "name", "radiusMeters", "alertsEnabled"]
+    },
+    "SafetyAlert": {
+      "title": "Alert & SOS Activity Event",
+      "description": "Safety sentinel alert, geofence arrival/departure, or SOS drill event.",
+      "type": "object",
+      "properties": {
+        "alertId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "childName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["SOS", "GEOFENCE", "DEVICE_HEALTH", "SYSTEM"] },
+        "severity": { "type": "string", "enum": ["INFO", "WARNING", "CRITICAL"] },
+        "timestampLabel": { "type": "string" },
+        "acknowledged": { "type": "boolean" }
+      },
+      "required": ["alertId", "familyId", "ownerUid", "childId", "title", "category", "severity", "acknowledged"]
+    },
+    "ChildRequest": {
+      "title": "Extra Time & App Request",
+      "description": "Child request for bonus screen time or new app installation.",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "childName": { "type": "string" },
+        "requestType": { "type": "string", "enum": ["EXTRA_TIME", "NEW_APP"] },
+        "targetName": { "type": "string" },
+        "targetCategory": { "type": "string" },
+        "requestedBonusMinutes": { "type": "integer" },
+        "childNote": { "type": "string" },
+        "usedTodaySummary": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "APPROVED", "DECLINED"] },
+        "decisionSummary": { "type": "string" },
+        "decidedBy": { "type": "string" }
+      },
+      "required": ["requestId", "familyId", "ownerUid", "childId", "requestType", "targetName", "status"]
+    },
+    "FamilyMessage": {
+      "title": "Family Chat Message",
+      "description": "Chat message or bilateral system event between parent and child.",
+      "type": "object",
+      "properties": {
+        "messageId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["PARENT", "CHILD", "SYSTEM"] },
+        "text": { "type": "string" },
+        "isSystemEvent": { "type": "boolean" },
+        "timestampLabel": { "type": "string" }
+      },
+      "required": ["messageId", "familyId", "ownerUid", "childId", "senderName", "senderRole", "text"]
+    },
+    "FamilyTask": {
+      "title": "Shared Family Task / Habit Pact",
+      "description": "Assigned chore or digital habit pact with screen-time or trust reward.",
+      "type": "object",
+      "properties": {
+        "taskId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "title": { "type": "string" },
+        "rewardSummary": { "type": "string" },
+        "dueSummary": { "type": "string" },
+        "status": { "type": "string", "enum": ["IN_PROGRESS", "READY_FOR_REVIEW", "COMPLETED"] },
+        "completedByChild": { "type": "boolean" },
+        "approvedByParent": { "type": "boolean" }
+      },
+      "required": ["taskId", "familyId", "ownerUid", "childId", "title", "rewardSummary", "status"]
+    },
+    "GuardianContact": {
+      "title": "Guardian or Trusted Emergency Contact",
+      "description": "Co-parent guardian or SOS emergency contact.",
+      "type": "object",
+      "properties": {
+        "guardianId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "name": { "type": "string" },
+        "relationRole": { "type": "string" },
+        "emailOrPhone": { "type": "string" },
+        "isPrimaryGuardian": { "type": "boolean" },
+        "permissionsSummary": { "type": "string" },
+        "receiveGeofenceAlerts": { "type": "boolean" },
+        "receiveSosSms": { "type": "boolean" },
+        "status": { "type": "string" }
+      },
+      "required": ["guardianId", "familyId", "ownerUid", "name", "relationRole", "isPrimaryGuardian"]
+    },
+    "PremiumFilterConfig": {
+      "title": "Premium Safeguards Policy Config",
+      "description": "Web filter, social filter, notification filter, and live session audit config.",
+      "type": "object",
+      "properties": {
+        "configId": { "type": "string" },
+        "familyId": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "childId": { "type": "string" },
+        "webFilterProfile": { "type": "string" },
+        "blockedCategories": { "type": "array", "items": { "type": "string" } },
+        "whitelistedDomains": { "type": "array", "items": { "type": "string" } },
+        "blacklistedDomains": { "type": "array", "items": { "type": "string" } },
+        "socialShieldProfile": { "type": "string" },
+        "discordDmWhitelistOnly": { "type": "boolean" },
+        "robloxChatFiltered": { "type": "boolean" },
+        "whatsappUnknownBlocked": { "type": "boolean" },
+        "youtubeRestrictedMode": { "type": "boolean" },
+        "notificationFilterEnabled": { "type": "boolean" },
+        "notificationProtocol": { "type": "string" },
+        "liveSessionAuditCode": { "type": "string" }
+      },
+      "required": ["configId", "familyId", "ownerUid", "childId", "webFilterProfile", "socialShieldProfile"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Guardian profile indexed by Auth UID."
+    },
+    "/families/{familyId}": {
+      "schema": { "$ref": "#/entities/FamilyHousehold" },
+      "description": "Household document owned by primary guardian."
+    },
+    "/families/{familyId}/children/{childId}": {
+      "schema": { "$ref": "#/entities/ChildProfile" },
+      "description": "Child profiles and telemetry within household."
+    },
+    "/families/{familyId}/pairingCodes/{codeId}": {
+      "schema": { "$ref": "#/entities/PairingCode" },
+      "description": "Temporary child device pairing codes."
+    },
+    "/families/{familyId}/appRules/{ruleId}": {
+      "schema": { "$ref": "#/entities/AppRule" },
+      "description": "Per-app usage limits and category policies."
+    },
+    "/families/{familyId}/schedules/{scheduleId}": {
+      "schema": { "$ref": "#/entities/ScheduleRoutine" },
+      "description": "Recurring downtime and school hour schedules."
+    },
+    "/families/{familyId}/geofences/{geofenceId}": {
+      "schema": { "$ref": "#/entities/SafeGeofence" },
+      "description": "Safe zone geofence boundaries."
+    },
+    "/families/{familyId}/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/SafetyAlert" },
+      "description": "SOS, geofence, and device health alerts."
+    },
+    "/families/{familyId}/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/ChildRequest" },
+      "description": "Extra time and app installation requests."
+    },
+    "/families/{familyId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/FamilyMessage" },
+      "description": "Family chat messages and bilateral system audit events."
+    },
+    "/families/{familyId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/FamilyTask" },
+      "description": "Shared family tasks and habit pacts."
+    },
+    "/families/{familyId}/guardians/{guardianId}": {
+      "schema": { "$ref": "#/entities/GuardianContact" },
+      "description": "Guardians and trusted emergency contacts."
+    },
+    "/families/{familyId}/premiumConfigs/{configId}": {
+      "schema": { "$ref": "#/entities/PremiumFilterConfig" },
+      "description": "Premium web, social, notification, and live session policies."
+    }
+  }
+}

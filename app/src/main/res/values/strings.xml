@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Anchor Parent</string>
+    <string name="brand_subtitle">Family Digital Wellbeing &amp; Guardian</string>
+    <string name="family_pledge_title">The Anchor Family Pledge</string>
+    <string name="family_pledge_body">No covert spyware. Every boundary, schedule, and safety check is visible to both parent and child to build lasting digital habits.</string>
+    <string name="sign_in_google">Continue with Google Guardian Account</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_controls">Controls</string>
+    <string name="nav_location">Location</string>
+    <string name="nav_family">Family</string>
+    <string name="nav_settings">Settings</string>
+    <string name="status_enforced">Enforced</string>
+    <string name="status_pending">Pending Sync</string>
+    <string name="status_failed">Failed</string>
+    <string name="status_unsupported">Unsupported</string>
+    <string name="premium_badge">PREMIUM</string>
+    <string name="free_badge">FREE CORE</string>
+</resources>

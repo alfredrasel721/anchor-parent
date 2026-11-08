@@ -1,0 +1,16 @@
+{
+  "firestore": {
+    "database": "ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e",
+    "rules": "firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8085
+    },
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9099
+    }
+  }
+}

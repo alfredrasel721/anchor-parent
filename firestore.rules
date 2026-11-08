@@ -1,0 +1,276 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && resource != null && resource.data.ownerUid == request.auth.uid;
+    }
+
+    function isFamilyPathOwner(familyId) {
+      return isAuthenticated() && familyId == ('fam_' + request.auth.uid);
+    }
+
+    function canReadFamilyDoc(familyId) {
+      return isFamilyPathOwner(familyId) || isDocOwner();
+    }
+
+    function isCreatingAsOwner() {
+      return isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function ownerUnchanged() {
+      return !('ownerUid' in request.resource.data) ||
+        request.resource.data.ownerUid == resource.data.ownerUid;
+    }
+
+    function validString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.uid == userId &&
+        validString(data.displayName, 1, 120) &&
+        validString(data.email, 3, 200) &&
+        data.role in ['PRIMARY_GUARDIAN', 'CO_PARENT', 'TRUSTED_CONTACT'] &&
+        validString(data.familyId, 1, 120);
+    }
+
+    function isValidFamilyHousehold(data) {
+      return validString(data.familyId, 1, 120) &&
+        validString(data.familyName, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        data.subscriptionTier in ['FREE', 'PREMIUM_ANNUAL', 'PREMIUM_MONTHLY'] &&
+        data.subscriptionActive is bool;
+    }
+
+    function isValidChildProfile(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.childId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.name, 1, 100) &&
+        data.age is int && data.age >= 1 && data.age <= 25 &&
+        data.dailyAllowanceMinutes is int && data.dailyAllowanceMinutes >= 0 && data.dailyAllowanceMinutes <= 1440 &&
+        data.usedMinutesToday is int && data.usedMinutesToday >= 0 && data.usedMinutesToday <= 1440;
+    }
+
+    function isValidPairingCode(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.codeId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.code, 4, 20) &&
+        data.status in ['ACTIVE', 'CONSUMED', 'EXPIRED'];
+    }
+
+    function isValidAppRule(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.ruleId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.packageName, 1, 200) &&
+        validString(data.appName, 1, 120) &&
+        validString(data.category, 1, 80) &&
+        data.dailyLimitMinutes is int && data.dailyLimitMinutes >= 0 && data.dailyLimitMinutes <= 1440 &&
+        data.status in ['ENFORCED', 'PENDING', 'SCHEDULE_ONLY', 'WHITELISTED', 'BLOCKED'];
+    }
+
+    function isValidScheduleRoutine(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.scheduleId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.title, 1, 120) &&
+        validString(data.windowDescription, 1, 120) &&
+        data.enabled is bool;
+    }
+
+    function isValidSafeGeofence(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.geofenceId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.name, 1, 120) &&
+        data.radiusMeters is int && data.radiusMeters >= 20 && data.radiusMeters <= 10000 &&
+        data.alertsEnabled is bool;
+    }
+
+    function isValidSafetyAlert(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.alertId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.title, 1, 200) &&
+        data.category in ['SOS', 'GEOFENCE', 'DEVICE_HEALTH', 'SYSTEM'] &&
+        data.severity in ['INFO', 'WARNING', 'CRITICAL'] &&
+        data.acknowledged is bool;
+    }
+
+    function isValidChildRequest(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.requestId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        data.requestType in ['EXTRA_TIME', 'NEW_APP'] &&
+        validString(data.targetName, 1, 150) &&
+        data.status in ['PENDING', 'APPROVED', 'DECLINED'];
+    }
+
+    function isValidFamilyMessage(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.messageId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.senderName, 1, 100) &&
+        data.senderRole in ['PARENT', 'CHILD', 'SYSTEM'] &&
+        validString(data.text, 1, 1000);
+    }
+
+    function isValidFamilyTask(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.taskId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.title, 1, 200) &&
+        validString(data.rewardSummary, 1, 120) &&
+        data.status in ['IN_PROGRESS', 'READY_FOR_REVIEW', 'COMPLETED'];
+    }
+
+    function isValidGuardianContact(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.guardianId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.name, 1, 120) &&
+        validString(data.relationRole, 1, 80) &&
+        data.isPrimaryGuardian is bool;
+    }
+
+    function isValidPremiumConfig(data, familyId) {
+      return data.familyId == familyId &&
+        validString(data.configId, 1, 120) &&
+        validString(data.ownerUid, 1, 128) &&
+        validString(data.childId, 1, 120) &&
+        validString(data.webFilterProfile, 1, 80) &&
+        validString(data.socialShieldProfile, 1, 80);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
+      allow update: if isOwner(userId) &&
+        request.resource.data.uid == resource.data.uid &&
+        isValidUserProfile(request.resource.data, userId);
+      allow delete: if isOwner(userId);
+    }
+
+    match /families/{familyId} {
+      allow get: if canReadFamilyDoc(familyId);
+      allow list: if isFamilyPathOwner(familyId);
+      allow create: if isCreatingAsOwner() && isValidFamilyHousehold(request.resource.data);
+      allow update: if isDocOwner() && ownerUnchanged() && isValidFamilyHousehold(request.resource.data);
+      allow delete: if isDocOwner();
+
+      match /children/{childId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidChildProfile(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidChildProfile(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /pairingCodes/{codeId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidPairingCode(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidPairingCode(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /appRules/{ruleId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidAppRule(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidAppRule(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /schedules/{scheduleId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidScheduleRoutine(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidScheduleRoutine(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /geofences/{geofenceId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidSafeGeofence(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidSafeGeofence(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /alerts/{alertId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidSafetyAlert(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidSafetyAlert(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /requests/{requestId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidChildRequest(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidChildRequest(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /messages/{messageId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidFamilyMessage(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidFamilyMessage(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /tasks/{taskId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidFamilyTask(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidFamilyTask(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /guardians/{guardianId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidGuardianContact(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidGuardianContact(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+
+      match /premiumConfigs/{configId} {
+        allow get: if canReadFamilyDoc(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create: if isCreatingAsOwner() && isValidPremiumConfig(request.resource.data, familyId);
+        allow update: if isDocOwner() && ownerUnchanged() && isValidPremiumConfig(request.resource.data, familyId);
+        allow delete: if isDocOwner();
+      }
+    }
+  }
+}
