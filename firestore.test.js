@@ -87,6 +87,12 @@ async function seedVerifiedFamily() {
       childId,
       status: 'ACTIVE',
     });
+    await db.doc(`pairingCodeLookupIndexes/${codeId}`).set({
+      familyId,
+      codeId,
+      lookupId: lookupHash,
+      status: 'ACTIVE',
+    });
     await db.doc(`pairingRateLimits/${childUid}`).set({
       childUid,
       failedCount: 1,
@@ -146,6 +152,7 @@ test('No mobile client can read or write private pairing lookups, rate limits, o
   const childDb = testEnv.authenticatedContext(seeded.childUid).firestore(DATABASE_ID);
   const lookupPath = `pairingCodeLookups/${seeded.lookupHash}`;
   const ratePath = `pairingRateLimits/${seeded.childUid}`;
+  const lookupIndexPath = `pairingCodeLookupIndexes/${seeded.codeId}`;
   const devicePath = `families/${seeded.familyId}/pairedDevices/${seeded.childUid}`;
 
   await assertFails(parentDb.doc(lookupPath).get());
@@ -154,6 +161,10 @@ test('No mobile client can read or write private pairing lookups, rate limits, o
   await assertFails(childDb.doc(lookupPath).set({ status: 'ACTIVE' }));
   await assertFails(parentDb.doc(ratePath).get());
   await assertFails(childDb.doc(ratePath).get());
+  await assertFails(parentDb.doc(lookupIndexPath).get());
+  await assertFails(childDb.doc(lookupIndexPath).get());
+  await assertFails(parentDb.doc(lookupIndexPath).set({ lookupId: seeded.lookupHash }));
+  await assertFails(childDb.doc(lookupIndexPath).set({ lookupId: seeded.lookupHash }));
   await assertFails(childDb.doc(devicePath).update({ status: 'PAIRED', childId: 'another_child' }));
   await assertFails(childDb.doc(`families/${seeded.familyId}/pairedDevices/fake_device`).set({
     deviceId: 'fake_device',
