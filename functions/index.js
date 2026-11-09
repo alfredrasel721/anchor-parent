@@ -111,15 +111,18 @@ exports.createPairingCode = onCall(async (request) => {
 
         const indexRef = db.doc("pairingCodeLookupIndexes/" + activeCodeSnap.id);
         const indexSnap = await tx.get(indexRef);
-        const lookupRefs = [];
+        const lookupIds = new Set();
 
         if (indexSnap.exists && indexSnap.data().lookupId) {
-          lookupRefs.push(db.doc("pairingCodeLookups/" + indexSnap.data().lookupId));
+          lookupIds.add(indexSnap.data().lookupId);
         }
         // Clean up legacy hashes written by earlier builds, without exposing them to clients.
         if (activeCode.codeHash) {
-          lookupRefs.push(db.doc("pairingCodeLookups/" + activeCode.codeHash));
+          lookupIds.add(activeCode.codeHash);
         }
+        const lookupRefs = Array.from(lookupIds).map((lookupId) =>
+          db.doc("pairingCodeLookups/" + lookupId)
+        );
 
         for (const staleLookupRef of lookupRefs) {
           await tx.get(staleLookupRef);
