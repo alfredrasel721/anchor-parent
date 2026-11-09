@@ -1,6 +1,6 @@
 /**
  * Anchor Family — shared trusted backend for Anchor Parent and Anchor Child.
- * Firebase project: gen-lang-client-0963224775
+ * Firebase project ID is supplied by the verified deployment workflow variable.
  * Firestore database: ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e
  *
  * Pairing secrets are never readable or writable by mobile clients. All pairing
