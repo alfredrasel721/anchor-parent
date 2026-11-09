@@ -108,9 +108,13 @@ exports.createPairingCode = onCall(async (request) => {
       if (oldCodeId) {
         oldCodeRef = db.doc("families/" + familyId + "/pairingCodes/" + oldCodeId);
         oldCodeSnap = await tx.get(oldCodeRef);
-        if (oldCodeSnap.exists && oldCodeSnap.data().codeHash) {
-          oldLookupRef = db.doc("pairingCodeLookups/" + oldCodeSnap.data().codeHash);
-          await tx.get(oldLookupRef);
+        const oldLookupQuery = db.collection("pairingCodeLookups")
+          .where("familyId", "==", familyId)
+          .where("codeId", "==", oldCodeId)
+          .limit(1);
+        const oldLookupSnap = await tx.get(oldLookupQuery);
+        if (!oldLookupSnap.empty) {
+          oldLookupRef = oldLookupSnap.docs[0].ref;
         }
       }
 
@@ -132,7 +136,6 @@ exports.createPairingCode = onCall(async (request) => {
         childId: childId,
         childName: childName,
         code: "",
-        codeHash: codeHash,
         expiresAtEpochMs: expiresAtEpochMs,
         status: "ACTIVE",
         revoked: false,
@@ -399,9 +402,13 @@ exports.revokePairingCode = onCall(async (request) => {
     if (codeId) {
       codeRef = db.doc("families/" + familyId + "/pairingCodes/" + codeId);
       codeSnap = await tx.get(codeRef);
-      if (codeSnap.exists && codeSnap.data().codeHash) {
-        lookupRef = db.doc("pairingCodeLookups/" + codeSnap.data().codeHash);
-        await tx.get(lookupRef);
+      const lookupQuery = db.collection("pairingCodeLookups")
+        .where("familyId", "==", familyId)
+        .where("codeId", "==", codeId)
+        .limit(1);
+      const lookupSnap = await tx.get(lookupQuery);
+      if (!lookupSnap.empty) {
+        lookupRef = lookupSnap.docs[0].ref;
       }
     }
 
