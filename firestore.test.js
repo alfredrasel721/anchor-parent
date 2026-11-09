@@ -104,6 +104,8 @@ test('Parent can read pairing status but cannot create or modify pairing secrets
 
   const code = await assertSucceeds(parentDb.doc(codePath).get());
   assert.equal(code.data().status, 'ACTIVE');
+  assert.equal(code.data().code, '');
+  assert.equal(code.data().codeHash, undefined);
   await assertSucceeds(parentDb.collection(`families/${seeded.familyId}/pairingCodes`).get());
 
   await assertFails(parentDb.doc(codePath).update({ status: 'REVOKED' }));
