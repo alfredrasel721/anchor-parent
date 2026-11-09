@@ -102,17 +102,27 @@ Use a strong password when prompted. Copy the resulting Base64 text directly int
 
 **Never paste a service-account JSON key, keystore, or keystore password into ChatGPT or commit them to Git.** Store those private credentials only as GitHub Actions secrets. The app-specific `google-services.json` files are already committed to their respective app repositories; they contain client configuration and are packaged into the APK. They are not substitutes for the private service-account JSON key.
 
-### Create the deployment service account
+### What is FIREBASE_SERVICE_ACCOUNT?
 
-In [Google Cloud Console — Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts):
+This is **not** either Android `google-services.json` file. It is a separate private JSON key that lets GitHub Actions authenticate as a Google Cloud service account and deploy the backend. Do not upload this file to ChatGPT, do not put it in either public repository, and do not share it in a screenshot.
 
-1. Select the same verified Firebase project.
-2. Create a service account for GitHub Actions deployment.
-3. Grant the deployment identity the required roles. Firebase documents **Cloud Functions Admin** (`roles/cloudfunctions.admin`) and **Service Account User** (`roles/iam.serviceAccountUser`) for deploying Functions. Also grant the Firebase Rules permissions needed to publish Firestore rules (for example, Firebase Rules Admin) and only the additional permissions the deployment reports as missing.
-4. Create a JSON key and save the downloaded file securely.
-5. Put the full JSON contents into the Parent repository's `FIREBASE_SERVICE_ACCOUNT` Actions secret.
+Create it from the browser:
 
-Do not grant project Owner to a long-lived service account unless absolutely necessary. If a deployment permission is missing, add the specific documented role rather than broadening access blindly.
+1. Open [Google Cloud Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts) and select project `gen-lang-client-0963224775`.
+2. Click **Create service account**. Name it `anchor-github-deploy`.
+3. Grant the new service account these project roles:
+   - **Cloud Functions Admin** (`roles/cloudfunctions.admin`)
+   - **Service Account User** (`roles/iam.serviceAccountUser`)
+   - **Firebase Rules Admin** (`roles/firebaserules.admin`)
+   - **Service Usage Consumer** (`roles/serviceusage.serviceUsageConsumer`)
+4. Open the new service account, choose **Keys** > **Add key** > **Create new key** > **JSON**. Google downloads a private JSON file to your computer.
+5. Open the Parent repository's [Actions secrets page](https://github.com/alfredrasel721/anchor-parent/settings/secrets/actions). Click **New repository secret**.
+6. For the name enter exactly `FIREBASE_SERVICE_ACCOUNT`. Open the downloaded JSON file in Notepad, copy all its contents including the opening and closing braces, paste them into the secret's value, and save.
+7. Keep the downloaded file in a safe place, then delete the extra Downloads copy after confirming the GitHub secret is saved. Never paste the key into ChatGPT or commit it to Git.
+
+The deployment workflow checks that the service account's `project_id` equals `gen-lang-client-0963224775`. Firebase's documented minimum for function deployment includes Cloud Functions Admin and Service Account User; Firebase Rules Admin is needed for publishing the checked-in Firestore rules. If Google Cloud reports a missing Cloud Build, Eventarc, Artifact Registry, or API permission, stop and share the error text (not the key) so the exact missing role/API can be identified. Do not grant project Owner just to make an error disappear.
+
+Google's role guidance: https://firebase.google.com/docs/projects/iam/permissions
 
 ## 7. Get signing fingerprints without installing anything
 
