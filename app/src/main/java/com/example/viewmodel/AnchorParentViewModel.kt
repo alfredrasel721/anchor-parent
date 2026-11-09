@@ -276,6 +276,14 @@ class AnchorParentViewModel(
                     details = "Connected to household ${household.familyName} ($familyId)",
                     syncState = "ENFORCED"
                 )
+
+                // Register this signed-in Parent device for private, server-managed SOS push alerts.
+                // If the Worker is not configured yet, normal Firebase sign-in and Firestore sync still work.
+                try {
+                    repository.subscribeToSosNotifications(familyId)
+                } catch (_: Exception) {
+                    // Registration is retried on the next successful Parent authentication.
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -438,6 +446,11 @@ class AnchorParentViewModel(
         viewModelScope.launch {
             realtimeListenerJobs.forEach { it.cancel() }
             realtimeListenerJobs.clear()
+            try {
+                repository.unsubscribeFromSosNotifications(_uiState.value.familyHousehold.familyId)
+            } catch (_: Exception) {
+                // Firebase sign-out must still complete if the Worker is temporarily unavailable.
+            }
             authManager.signOut(context)
             _uiState.update {
                 it.copy(
