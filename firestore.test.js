@@ -161,6 +161,8 @@ test('No mobile client can read or write private pairing lookups, rate limits, o
   await assertFails(childDb.doc(lookupPath).set({ status: 'ACTIVE' }));
   await assertFails(parentDb.doc(ratePath).get());
   await assertFails(childDb.doc(ratePath).get());
+  await assertFails(parentDb.doc(ratePath).set({ failedCount: 0 }));
+  await assertFails(childDb.doc(ratePath).set({ failedCount: 0 }));
   await assertFails(parentDb.doc(lookupIndexPath).get());
   await assertFails(childDb.doc(lookupIndexPath).get());
   await assertFails(parentDb.doc(lookupIndexPath).set({ lookupId: seeded.lookupHash }));
