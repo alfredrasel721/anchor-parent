@@ -153,6 +153,7 @@ test('No mobile client can read or write private pairing lookups, rate limits, o
   const lookupPath = `pairingCodeLookups/${seeded.lookupHash}`;
   const ratePath = `pairingRateLimits/${seeded.childUid}`;
   const lookupIndexPath = `pairingCodeLookupIndexes/${seeded.codeId}`;
+  const notificationTopicPath = `familyNotificationTopics/${seeded.familyId}`;
   const devicePath = `families/${seeded.familyId}/pairedDevices/${seeded.childUid}`;
 
   await assertFails(parentDb.doc(lookupPath).get());
@@ -167,6 +168,10 @@ test('No mobile client can read or write private pairing lookups, rate limits, o
   await assertFails(childDb.doc(lookupIndexPath).get());
   await assertFails(parentDb.doc(lookupIndexPath).set({ lookupId: seeded.lookupHash }));
   await assertFails(childDb.doc(lookupIndexPath).set({ lookupId: seeded.lookupHash }));
+  await assertFails(parentDb.doc(notificationTopicPath).get());
+  await assertFails(childDb.doc(notificationTopicPath).get());
+  await assertFails(parentDb.doc(notificationTopicPath).set({ topic: 'must-not-be-readable' }));
+  await assertFails(childDb.doc(notificationTopicPath).set({ topic: 'must-not-be-readable' }));
   await assertFails(childDb.doc(devicePath).update({ status: 'PAIRED', childId: 'another_child' }));
   await assertFails(childDb.doc(`families/${seeded.familyId}/pairedDevices/fake_device`).set({
     deviceId: 'fake_device',
