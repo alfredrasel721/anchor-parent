@@ -1,6 +1,6 @@
 const PROJECT_ID = "gen-lang-client-0963224775";
 const DATABASE_ID = "ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e";
-const FIREBASE_JWK_URL = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
+const FIREBASE_CERT_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FIRESTORE_SCOPE = "https://www.googleapis.com/auth/datastore";
 const FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
@@ -142,6 +142,54 @@ function decodeJwtPart(part) {
   return JSON.parse(new TextDecoder().decode(base64UrlDecode(part)));
 }
 
+function pemToDer(pem) {
+  const body = pem.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\\s/g, "");
+  const binary = atob(body);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}
+
+function readDerElement(bytes, offset) {
+  if (offset >= bytes.length) throw new Error("Invalid X.509 certificate encoding.");
+  const tag = bytes[offset];
+  let length = bytes[offset + 1];
+  let headerLength = 2;
+  if (length & 0x80) {
+    const lengthBytes = length & 0x7f;
+    if (lengthBytes < 1 || lengthBytes > 4 || offset + 2 + lengthBytes > bytes.length) {
+      throw new Error("Invalid X.509 certificate length.");
+    }
+    length = 0;
+    for (let index = 0; index < lengthBytes; index += 1) {
+      length = (length * 256) + bytes[offset + 2 + index];
+    }
+    headerLength += lengthBytes;
+  }
+  const start = offset + headerLength;
+  const end = start + length;
+  if (end > bytes.length) throw new Error("Truncated X.509 certificate.");
+  return { tag, offset, start, end, next: end };
+}
+
+function extractSubjectPublicKeyInfo(certificateDer) {
+  const certificate = readDerElement(certificateDer, 0);
+  if (certificate.tag !== 0x30) throw new Error("Invalid X.509 certificate sequence.");
+  const tbs = readDerElement(certificateDer, certificate.start);
+  if (tbs.tag !== 0x30) throw new Error("Invalid X.509 TBS certificate.");
+  let cursor = tbs.start;
+  let field = readDerElement(certificateDer, cursor);
+  if (field.tag === 0xa0) {
+    cursor = field.next;
+    field = readDerElement(certificateDer, cursor);
+  }
+  // serialNumber, signature, issuer, validity, and subject precede SPKI.
+  for (let index = 0; index < 5; index += 1) {
+    cursor = field.next;
+    field = readDerElement(certificateDer, cursor);
+  }
+  if (field.tag !== 0x30) throw new Error("X.509 certificate does not contain a valid public key.");
+  return certificateDer.slice(field.offset, field.next);
+}
+
 async function cachedJson(cacheKey, loader, fallbackTtlSeconds = 300) {
   const cache = globalThis.caches?.default;
   const request = new Request(cacheKey);
@@ -161,15 +209,14 @@ async function cachedJson(cacheKey, loader, fallbackTtlSeconds = 300) {
   return loaded.value;
 }
 
-async function getFirebaseSigningKeys() {
-  return cachedJson("https://anchor-internal.invalid/firebase-id-token-jwks", async () => {
-    const response = await fetch(FIREBASE_JWK_URL);
+async function getFirebaseSigningCerts() {
+  return cachedJson("https://anchor-internal.invalid/firebase-id-token-certs", async () => {
+    const response = await fetch(FIREBASE_CERT_URL);
     if (!response.ok) throw new AppError("unavailable", "Firebase identity verification is temporarily unavailable.", 503);
-    const jwks = await response.json();
-    const keys = Object.fromEntries((jwks.keys ?? []).map((key) => [key.kid, key]));
+    const certs = await response.json();
     const cacheControl = response.headers.get("cache-control") ?? "";
-    const maxAge = Number(cacheControl.match(/max-age=(\d+)/i)?.[1] ?? 3600);
-    return { value: keys, ttl: maxAge };
+    const maxAge = Number(cacheControl.match(/max-age=(\\d+)/i)?.[1] ?? 3600);
+    return { value: certs, ttl: maxAge };
   });
 }
 
@@ -196,12 +243,12 @@ export async function verifyFirebaseIdToken(idToken, projectId = PROJECT_ID) {
       !Number.isFinite(claims.auth_time) || claims.auth_time > now + 60) {
     throw new AppError("unauthenticated", "The Firebase sign-in token is expired or does not belong to this project.", 401);
   }
-  const signingKeys = await getFirebaseSigningKeys();
-  const jwk = signingKeys[header.kid];
-  if (!jwk) throw new AppError("unauthenticated", "The Firebase sign-in token signing key is no longer valid.", 401);
+  const signingCerts = await getFirebaseSigningCerts();
+  const certificate = signingCerts[header.kid];
+  if (!certificate) throw new AppError("unauthenticated", "The Firebase sign-in token signing key is no longer valid.", 401);
   const key = await crypto.subtle.importKey(
-    "jwk",
-    jwk,
+    "spki",
+    extractSubjectPublicKeyInfo(pemToDer(certificate)),
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
     ["verify"]
