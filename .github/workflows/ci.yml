@@ -140,7 +140,8 @@ jobs:
             console.log("Database type: " + (database.type || "not reported"));
             console.log("Firestore freeTier: " + String(database.freeTier));
             if (database.freeTier !== true) {
-              console.error("This database is not confirmed as free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");\n              process.exitCode = 1;
+              console.error("This database is not confirmed as free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");
+              process.exitCode = 1;
             } else {
               console.log("Firestore database metadata confirms free-tier eligibility.");
             }
