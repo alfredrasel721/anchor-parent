@@ -4,7 +4,7 @@
   "description": "Firebase Cloud Functions (Admin SDK) for Anchor Family Parent-Child Secure Pairing & Synchronization",
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
     "firebase-admin": "^12.6.0",
