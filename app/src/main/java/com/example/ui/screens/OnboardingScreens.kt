@@ -608,9 +608,7 @@ fun P03AddChildPairCodeScreen(
     state: AnchorUiState,
     onSelectChild: (String) -> Unit,
     onGenerateNewCode: () -> Unit,
-    onRevokeCode: () -> Unit = {
-
-},
+    onRevokeCode: () -> Unit = {},
     onUnpairDevice: (String) -> Unit = {},
     onCopyCode: () -> Unit,
     onShareInstructions: () -> Unit,
