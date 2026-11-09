@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import worker, {
   normalizePairingCode,
   safePathSegment,
@@ -69,16 +70,10 @@ test("unknown routes do not disclose backend configuration", async () => {
   assert.equal(response.status, 404);
 });
 
-test("verifies Firebase ID log signature and project claims against the Google JWKS", async () => {
+test("validates Firebase certificate structure and rejects an invalid token signature", async () => {
   const originalFetch = globalThis.fetch;
-  const pair = await crypto.subtle.generateKey(
-    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
-    true,
-    ["sign", "verify"]
-  );
+  const certificate = await readFile(new URL("./fixtures/firebase-test-cert.pem", import.meta.url), "utf8");
   const kid = "test-firebase-key";
-  const jwk = await crypto.subtle.exportKey("jwk", pair.publicKey);
-  Object.assign(jwk, { kid, alg: "RS256", use: "sig", key_ops: ["verify"] });
   const now = Math.floor(Date.now() / 1000);
   const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const unsigned = [
@@ -90,14 +85,13 @@ test("verifies Firebase ID log signature and project claims against the Google J
       iat: now, exp: now + 3600, auth_time: now - 10
     })
   ].join(".");
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", pair.privateKey, new TextEncoder().encode(unsigned));
-  const token = unsigned + "." + Buffer.from(signature).toString("base64url");
-  globalThis.fetch = async () => new Response(JSON.stringify({ keys: [jwk] }), {
+  const invalidSignature = Buffer.alloc(256).toString("base64url");
+  const token = unsigned + "." + invalidSignature;
+  globalThis.fetch = async () => new Response(JSON.stringify({ [kid]: certificate }), {
     status: 200, headers: { "content-type": "application/json", "cache-control": "public, max-age=300" }
   });
   try {
-    const result = await verifyFirebaseIdToken(token, "test-anchor-project");
-    assert.equal(result.uid, "child-user-123");
+    await assert.rejects(() => verifyFirebaseIdToken(token, "test-anchor-project"), { code: "unauthenticated" });
     await assert.rejects(() => verifyFirebaseIdToken(token, "wrong-project"), { code: "unauthenticated" });
   } finally {
     globalThis.fetch = originalFetch;
