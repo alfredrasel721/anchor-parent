@@ -572,4 +572,52 @@ async function redeemPairingCode(db, uid, body) {
     const childData = childSnap.data;
     if (codeData.status !== "ACTIVE" || lookup.expiresAtEpochMs !== codeData.expiresAtEpochMs) {
       tx.delete(`pairingCodeLookups/${codeHash}`);
-      if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`
+      if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`);
+      return { errorCode: "failed-precondition", errorMessage: "This pairing code has already been used or revoked." };
+    }
+    if (Number(codeData.expiresAtEpochMs ?? 0) <= nowMs) {
+      tx.update(`families/${familyId}/pairingCodes/${codeId}`, { status: "EXPIRED" });
+      tx.delete(`pairingCodeLookups/${codeHash}`);
+      if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`);
+      return { errorCode: "deadline-exceeded", errorMessage: "This pairing code expired. Ask the Parent for a new code." };
+    }
+    if (familyData.ownerUid !== codeData.ownerUid || childData.ownerUid !== codeData.ownerUid ||
+        childData.familyId !== familyId || childData.childId !== codeData.childId) {
+      tx.delete(`pairingCodeLookups/${codeHash}`);
+      if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`);
+      return { errorCode: "permission-denied", errorMessage: "The pairing code does not match a valid family profile." };
+    }
+    if (childData.pairedChildUid && childData.pairedChildUid !== uid) {
+      return { errorCode: "already-exists", errorMessage: "This child profile is already paired to another device. Ask the Parent to unpair it first." };
+    }
+    if (deviceSnap && deviceSnap.data.status === "PAIRED" && deviceSnap.data.childId !== codeData.childId) {
+      return { errorCode: "already-exists", errorMessage: "This account is already paired to another child profile." };
+    }
+
+    tx.update(`families/${familyId}/pairingCodes/${codeId}`, {
+      status: "CONSUMED", consumedByChildUid: uid, consumedAtEpochMs: nowMs
+    });
+    tx.delete(`pairingCodeLookups/${codeHash}`);
+    if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`);
+    tx.set(`families/${familyId}/pairedDevices/${uid}`, {
+      deviceId: uid, childUid: uid, familyId, ownerUid: codeData.ownerUid,
+      childId: codeData.childId, childName: codeData.childName || "Child", codeId,
+      redeemedCode: "", deviceName, deviceModel, osVersion, status: "PAIRED",
+      pairedAtEpochMs: nowMs, lastHeartbeatEpochMs: nowMs, updatedAt: new Date(nowMs)
+    });
+    tx.update(`families/${familyId}/children/${childId}`, {
+      pairedChildUid: uid, activePairingCodeId: DELETE_FIELD,
+      deviceName, deviceModel, osVersion, syncStatus: "ENFORCED",
+      lastSyncLabel: "Paired & verified", updatedAt: new Date(nowMs)
+    });
+    tx.delete(pairingRateLimits/${uid}`);
+    return {
+      verified: true, familyId, ownerUid: codeData.ownerUid,
+      childId: codeData.childId, childName: codeData.childName || "Child",
+      codeId, deviceId: uid, pairedAtEpochMs: nowMs
+    };
+  });
+  if (outcome.errorCode) throw new AppError(outcome.errorCode, outcome.errorMessage, statusForCode(outcome.errorCode));
+  return outcome;
+}
+
