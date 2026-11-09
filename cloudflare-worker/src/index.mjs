@@ -687,4 +687,74 @@ async function verifyPairingSession(db, uid, body) {
       tx.get(`families/${familyId}/children/${childId}`),
       tx.get(`families/${familyId}/pairedDevices/${uid}`)
     ]);
-    
+    if (!familySnap || !childSnap || !deviceSnap) return { verified: false };
+    const family = familySnap.data;
+    const child = childSnap.data;
+    const device = deviceSnap.data;
+    const verified = family.ownerUid === device.ownerUid &&
+      device.childUid === uid && device.familyId === familyId &&
+      device.childId === childId && device.status === "PAIRED" &&
+      child.ownerUid === family.ownerUid && child.pairedChildUid === uid;
+    return {
+      verified,
+      familyId: verified ? familyId : "",
+      ownerUid: verified ? family.ownerUid : "",
+      childId: verified ? childId : "",
+      childName: verified ? (child.name || device.childName || "Child") : "",
+      codeId: verified ? (device.codeId || "") : ""
+    };
+  });
+}
+
+async function getOrCreateSosTopic(db, uid, body) {
+  const familyId = safePathSegment(body.familyId, "familyId");
+  if (familyId !== `fam_${uid}`) throw new AppError("permission-denied", "Only the family owner can register Parent notifications.", 403);
+  return runTransaction(db, async (tx) => {
+    const [familySnap, topicSnap] = await Promise.all([
+      tx.get(`families/${familyId}`),
+      tx.get(`familyNotificationTopics/${familyId}`)
+    ]);
+    if (!familySnap || familySnap.data.ownerUid !== uid) {
+      throw new AppError("permission-denied", "Only the verified family owner can register Parent notifications.", 403);
+    }
+    if (topicSnap?.data.topic) return { topic: topicSnap.data.topic };
+    const topic = `anchor_sos_${randomHex(24)}`;
+    tx.set(`familyNotificationTopics/${familyId}`, {
+      familyId, ownerUid: uid, topic, createdAt: new Date()
+    }, { create: true });
+    return { topic };
+  });
+}
+
+async function sendFcmTopic(accessToken, projectId, topic, payload) {
+  const response = await fetch(`https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: {
+        topic,
+        notification: { title: payload.title, body: payload.body },
+        android: { priority: payload.priority ?? "HIGH" },
+        data: payload.data
+      }
+    })
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(JSON.stringify({ message: "FCM SOS notification failed", status: response.status, detail: errorText.slice(0, 300) }));
+    return false;
+  }
+  return true;
+}
+
+async function dispatchSos(db, accessToken, projectId, uid, body) {
+  const familyId = safePathSegment(body.familyId, "familyId");
+  const childId = safePathSegment(body.childId, "childId");
+  const childName = safeDeviceValue(body.childName, "Child", 100);
+  const locationLabel = safeDeviceValue(body.locationLabel, "Location unavailable", 240);
+  const batteryLevel = Math.max(0, Math.min(100, Number(body.batteryLevel) || 0));
+  const isPracticeDrill = body.isPracticeDrill === true;
+  const alertId = body.alertId ? 
