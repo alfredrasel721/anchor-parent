@@ -72,8 +72,10 @@ import com.example.ui.theme.AnchorParentTheme
 import com.example.ui.theme.AnchorPrimary
 import com.example.viewmodel.AnchorParentViewModel
 import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,11 +101,26 @@ class MainActivity : ComponentActivity() {
 
     private fun initializeFirebaseSafely() {
         try {
-            FirebaseApp.initializeApp(this)
-            val appCheck = FirebaseAppCheck.getInstance()
-            appCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+            val firebaseApp = FirebaseApp.initializeApp(this)
+                ?: FirebaseApp.initializeApp(
+                    this,
+                    FirebaseOptions.Builder()
+                        .setProjectId("gen-lang-client-0963224775")
+                        .setApplicationId("1:000000000000:android:0000000000000000")
+                        .setApiKey("AIzaSyDummyKeyForLocalRobolectricTest")
+                        .build()
+                )
+
+            // Never ship the debug App Check provider in a release build.
+            val appCheck = FirebaseAppCheck.getInstance(firebaseApp)
+            if (BuildConfig.DEBUG) {
+                appCheck.installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
+            } else {
+                appCheck.installAppCheckProviderFactory(PlayIntegrityAppCheckProviderFactory.getInstance())
+            }
         } catch (_: Exception) {
-            // Safe fallback in unit test or uninitialized environment
+            // The app remains usable in local-only mode if Firebase is not configured.
+            // Real sign-in and cloud sync require the matching google-services.json file.
         }
     }
 }
