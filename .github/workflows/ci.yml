@@ -19,6 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Add CI-only Google OAuth resource placeholder
+        run: |
+          mkdir -p app/src/debug/res/values
+          cat > app/src/debug/res/values/google_services_ci.xml <<'EOF'
+          <resources>
+            <string name="default_web_client_id" translatable="false">ci-placeholder.apps.googleusercontent.com</string>
+          </resources>
+          EOF
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
