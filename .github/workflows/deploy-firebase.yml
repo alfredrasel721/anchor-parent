@@ -26,12 +26,17 @@ jobs:
       - name: Validate deployment configuration
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
-            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT. Add a Firebase deploy service-account JSON before running this workflow."
+            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT."
             exit 1
           fi
-          node -e 'const x=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); if (!x.project_id || x.project_id !== "gen-lang-client-0963224775" || !x.private_key || !x.client_email) process.exit(1)'
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            echo "::error::Missing repository variable FIREBASE_PROJECT_ID. Set it to the verified Firebase project ID in Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          fi
+          node -e 'const x=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); const expected=process.env.FIREBASE_PROJECT_ID; if (!x.project_id || x.project_id !== expected || !x.private_key || !x.client_email) { console.error("Service-account project_id must match FIREBASE_PROJECT_ID."); process.exit(1); }'
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
           chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
