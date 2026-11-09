@@ -35,6 +35,11 @@ class ExampleRobolectricTest {
             .performScrollTo()
             .assertIsDisplayed()
 
+        // Generate a local demo code first; only an ACTIVE code can be revoked.
+        composeTestRule.onNodeWithTag("refresh_pairing_code_btn")
+            .performScrollTo()
+            .performClick()
+
         composeTestRule.onNodeWithTag("revoke_pairing_code_btn")
             .performScrollTo()
             .performClick()
