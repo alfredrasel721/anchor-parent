@@ -11,10 +11,11 @@ No Firebase ChatGPT plugin, Windows app, Android Studio, or local command line i
 - Shared Firestore database ID currently configured in both apps and the backend:
   `ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e`
 - Cloud Functions runtime: Node.js 22
-- Cloud Functions and Android callable-client region: `us-central1`
+- Firestore database location: `asia-south1` (owner-confirmed existing database)
+- Cloud Functions and Android callable-client region: `asia-south1`
 - Firebase project ID: `gen-lang-client-0963224775` (provided by the owner in this conversation and now configured as the default target in both repositories).
 
-**Do not deploy until the owner confirms the Firebase project and the Firestore database.** The Firestore database location is permanent. If the database does not already exist, confirm its desired location before creating it; the Functions currently use `us-central1`, and the app/backend region can be aligned to the chosen database location before production deployment.
+The owner has confirmed that this project already contains the shared Firestore Native database in `asia-south1`. Both Android apps and the backend are now configured to use that database ID, and the callable Functions plus Firestore trigger are configured for `asia-south1`. **Do not create another database.**
 
 ## 1. Confirm the correct Firebase project
 
@@ -34,15 +35,14 @@ In the confirmed Firebase project, add two Android apps separately:
 | Anchor Parent | `com.anchor.parent` |
 | Anchor Child | `com.anchor.child` |
 
-The package names are case-sensitive and cannot be changed for a registered Firebase Android app. Download the corresponding `google-services.json` file for each app. Do not use the Parent file for Child or vice versa.
+The package names are case-sensitive. The uploaded configuration contained both Android clients in each file; I separated them and added the correct app-specific configuration to each repository at `app/google-services.json`. Parent's repository contains only `com.anchor.parent`; Child's contains only `com.anchor.child`. These are client-side Firebase configuration files, not service-account credentials.
 
 ## 3. Enable Google sign-in
 
 1. In Firebase Console, open **Authentication** > **Sign-in method** (or **Sign-in providers**).
 2. Enable **Google**.
 3. Choose a project support email and save.
-4. Before downloading the final config files, add the release signing certificate's SHA-1 fingerprint to each Android app in **Project settings** > **Your apps**. Section 7 explains how to obtain the fingerprint through GitHub Actions without installing software on the laptop.
-5. Download a fresh `google-services.json` for each Android app after the SHA-1 and Google provider are configured. The file should contain the Web OAuth client used by Google sign-in.
+4. The uploaded configuration already includes a Web OAuth client for Google sign-in. The Android OAuth certificate hashes currently in the files may not match the release signing key that will be used for the final APK. After the release keystore is configured, add its SHA-1 fingerprint to each Firebase Android app in **Project settings** > **Your apps** (see section 7).
 
 Firebase's official setup guide: https://firebase.google.com/docs/auth/android/google-signin
 
@@ -50,13 +50,9 @@ Firebase's official setup guide: https://firebase.google.com/docs/auth/android/g
 
 Open **Build** > **Firestore Database** in Firebase Console.
 
-- First check whether the database ID below already exists:
-  `ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e`
-- If it exists in the confirmed project, keep it. Both apps and the backend are already aligned to this ID.
-- If it does not exist, **pause before creating anything and send the project ID plus a screenshot of the Firestore page**. The database location cannot be changed later, and we should align the Functions region before creation. The current Functions region is `us-central1`; for users in Bangladesh, an Asia region may be preferable if no database exists yet.
-- If Firebase rejects the current long database ID, do not invent a different ID in the console. Send the error; the same new ID must be changed consistently in both Android apps, `firebase.json`, Firestore rules deployment, and the Admin SDK backend.
+The owner confirmed that the database ID `ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e` already exists in this project as a Firestore Native database in `asia-south1`. **No database creation or location change is needed.** Both apps, Firestore rules deployment, and the Admin SDK backend are configured to use this exact database ID. The callable Functions and SOS Firestore trigger now use `asia-south1` as well.
 
-If we confirm a new database is needed, use **Add database** > **Standard edition** > **Native mode**, enter the agreed database ID and location, and choose **Production mode**. Do not use Test mode for production. The CI suite already tests the checked-in Firestore rules against the emulator; the deployment workflow publishes those rules to the selected production database.
+The CI suite tests the checked-in Firestore rules against the emulator. The guarded deployment workflow will publish those rules to this existing database.
 
 Official database guide: https://firebase.google.com/docs/firestore/manage-databases
 
@@ -78,9 +74,8 @@ Open: https://github.com/alfredrasel721/anchor-parent/settings/secrets/actions
 
 Under **Secrets**, add:
 
-- `FIREBASE_SERVICE_ACCOUNT` = the complete JSON key for the deployment service account.
-- `FIREBASE_GOOGLE_SERVICES_JSON` = the complete Parent app's `google-services.json`.
-- `ANDROID_UPLOAD_KEYSTORE_BASE64` = the release keystore encoded as Base64.
+- `FIREBASE_SERVICE_ACCOUNT` = the complete private JSON key for the deployment service account (see the next subsection).
+- `ANDROID_UPLOAD_KEYSTORE_BASE64` = the Parent release keystore encoded as Base64.
 - `ANDROID_UPLOAD_KEYSTORE_PASSWORD` = the keystore password.
 - `ANDROID_UPLOAD_KEY_PASSWORD` = the key password.
 
@@ -90,7 +85,6 @@ Open: https://github.com/alfredrasel721/Anchor-Child/settings/secrets/actions
 
 Under **Secrets**, add:
 
-- `FIREBASE_GOOGLE_SERVICES_JSON` = the complete Child app's `google-services.json`.
 - `ANDROID_UPLOAD_KEYSTORE_BASE64` = the Child release keystore encoded as Base64.
 - `ANDROID_UPLOAD_KEYSTORE_PASSWORD` = the keystore password.
 - `ANDROID_UPLOAD_KEY_PASSWORD` = the key password.
@@ -106,7 +100,7 @@ base64 -w 0 anchor-parent-upload.jks
 
 Use a strong password when prompted. Copy the resulting Base64 text directly into the matching GitHub Actions secret. Repeat with a different filename for the Child app if it needs its own key. Keep the original `.jks` file and passwords in a safe offline backup. Never paste the Base64 string or passwords into ChatGPT, a public issue, or a repository file.
 
-**Never paste a service-account JSON key, keystore, or keystore password into ChatGPT or commit them to Git.** Store them only as GitHub Actions secrets. The Firebase `google-services.json` file contains app/project identifiers and OAuth client configuration; this repository's release workflow reads it from a GitHub secret rather than committing it.
+**Never paste a service-account JSON key, keystore, or keystore password into ChatGPT or commit them to Git.** Store those private credentials only as GitHub Actions secrets. The app-specific `google-services.json` files are already committed to their respective app repositories; they contain client configuration and are packaged into the APK. They are not substitutes for the private service-account JSON key.
 
 ### Create the deployment service account
 
@@ -137,7 +131,7 @@ App Check guide: https://firebase.google.com/docs/app-check/android/play-integri
 
 ## 8. Deploy the trusted backend
 
-After both pull requests are merged to `main`, the project variable and service-account secret are configured, billing is enabled, and the Firestore database has been verified:
+After both pull requests are merged to `main`, the Parent repository's `FIREBASE_SERVICE_ACCOUNT` secret is configured, billing is enabled, and the existing Firestore database has been confirmed:
 
 1. Open the Parent repository's **Actions** tab.
 2. Select **Deploy Anchor Firebase backend**.
@@ -149,14 +143,14 @@ The workflow checks that the service-account project's `project_id` matches the 
 
 ## 9. Build signed release files
 
-After the correct config files and signing secrets are in place:
+After both app-specific `google-services.json` files (already committed in the PRs) and the Android signing secrets are in place:
 
 1. In each repository, open **Actions**.
 2. Select **Build signed Android release**.
 3. Run on branch `main` and enter exactly `BUILD_RELEASE`.
 4. Download the resulting signed APK and AAB artifacts.
 
-The release workflow checks that the Firebase config matches the verified project ID, the correct Android package, and a Web OAuth client. It also prints the signing certificate fingerprints. Keep the same release key for all future updates to that app.
+The release workflow checks the committed Firebase config against the project ID, correct Android package, and Web OAuth client. It also prints the signing certificate fingerprints. Keep the same release key for all future updates to that app.
 
 ## 10. Final physical-device acceptance test
 
@@ -178,4 +172,6 @@ Install Parent and Child on separate Android devices and verify:
 - Debug APKs are uploaded as workflow artifacts.
 - A guarded Firebase deployment workflow is prepared in the Parent repository.
 - Browser-run keystore fingerprint and signed-release workflows are prepared in both repositories.
-- Both repositories now use `gen-lang-client-0963224775` as their default Firebase project, based on the Project ID supplied by the owner.
+- Both repositories are pinned to `gen-lang-client-0963224775`.
+- Each repository contains its own app-specific `app/google-services.json`.
+- Parent and Child callable clients, Cloud Functions, and the SOS Firestore trigger are configured for `asia-south1`.
