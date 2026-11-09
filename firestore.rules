@@ -318,6 +318,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /pairingCodeLookupIndexes/{codeId} {
+      allow read, write: if false;
+    }
+
     match /pairingRateLimits/{childUid} {
       allow read, write: if false;
     }
