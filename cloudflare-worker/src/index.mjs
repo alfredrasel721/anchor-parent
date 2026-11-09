@@ -519,4 +519,57 @@ async function createPairingCode(db, uid, body) {
 
 async function redeemPairingCode(db, uid, body) {
   const code = normalizePairingCode(body.code);
-  if (!code) throw new AppError
+  if (!code) throw new AppError"invalid-argument", "Enter the six-digit code shown in Anchor Parent.", 400);
+  const deviceName = safeDeviceValue(body.deviceName, "Android Child Device", 100);
+  const deviceModel = safeDeviceValue(body.deviceModel, "Android", 100);
+  const osVersion = safeDeviceValue(body.osVersion, "Android", 50);
+  const nowMs = Date.now();
+  const codeHash = await sha256Hex(code);
+  const outcome = await runTransaction(db, async (tx) => {
+    const [rateSnap, lookupSnap] = await Promise.all([
+      tx.get(`pairingRateLimits/${uid}`),
+      tx.get(`pairingCodeLookups/${codeHash}`)
+    ]);
+    const rateData = rateSnap?.data ?? {};
+    const oldWindowStart = Number(rateData.windowStartEpochMs ?? 0);
+    const sameWindow = oldWindowStart > 0 && nowMs - oldWindowStart < RATE_LIMIT_WINDOW_MS;
+    const windowStartEpochMs = sameWindow ? oldWindowStart : nowMs;
+    const failedCount = sameWindow ? Number(rateData.failedCount ?? 0) : 0;
+    if (failedCount >= MAX_REDEEM_ATTEMPTS) {
+      return { errorCode: "resource-exhausted", errorMessage: "Too many attempts. Wait 15 minutes before trying again." };
+    }
+    if (!lookupSnap || lookupSnap.data.status !== "ACTIVE") {
+      tx.set(`pairingRateLimits/${uid}`, {
+        childUid: uid, failedCount: failedCount + 1,
+        windowStartEpochMs, lastAttemptEpochMs: nowMs
+      });
+      return { errorCode: "not-found", errorMessage: "Invalid or expired pairing code. Check the code in Anchor Parent." };
+    }
+
+    const lookup = lookupSnap.data;
+    const familyId = String(lookup.familyId ?? "");
+    const codeId = String(lookup.codeId ?? "");
+    const childId = String(lookup.childId ?? "");
+    if (!familyId || !codeId || !childId || !/^[A-Za-z0-9_-]+$/.test(familyId) || !/^[A-Za-z0-9_-]+$/.test(childId)) {
+      tx.delete(`pairingCodeLookups/${codeHash}`);
+      return { errorCode: "failed-precondition", errorMessage: "Pairing code is no longer valid. Ask the Parent to generate a new one." };
+    }
+
+    const [codeSnap, familySnap, childSnap, deviceSnap, lookupIndexSnap] = await Promise.all([
+      tx.get(`families/${familyId}/pairingCodes/${codeId}`),
+      tx.get(`families/${familyId}`),
+      tx.get(`families/${familyId}/children/${childId}`),
+      tx.get(`families/${familyId}/pairedDevices/${uid}`),
+      tx.get(`pairingCodeLookupIndexes/${codeId}`)
+    ]);
+    if (!codeSnap || !familySnap || !childSnap) {
+      tx.delete(`pairingCodeLookups/${codeHash}`);
+      if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`);
+      return { errorCode: "failed-precondition", errorMessage: "The Parent profile is no longer available. Ask the Parent to generate a new code." };
+    }
+    const codeData = codeSnap.data;
+    const familyData = familySnap.data;
+    const childData = childSnap.data;
+    if (codeData.status !== "ACTIVE" || lookup.expiresAtEpochMs !== codeData.expiresAtEpochMs) {
+      tx.delete(`pairingCodeLookups/${codeHash}`);
+      if (lookupIndexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`
