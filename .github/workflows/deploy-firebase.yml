@@ -1,0 +1,48 @@
+name: Deploy Anchor Firebase backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Type DEPLOY to deploy Firestore rules and Cloud Functions to the configured Firebase project."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Firestore rules and Cloud Functions
+    if: ${{ github.event.inputs.confirm_production == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate deployment configuration
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT. Add a Firebase deploy service-account JSON before running this workflow."
+            exit 1
+          fi
+          node -e 'const x=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); if (!x.project_id || x.project_id !== "gen-lang-client-0963224775" || !x.private_key || !x.client_email) process.exit(1)'
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Install Firebase CLI and Cloud Functions dependencies
+        run: |
+          npm install --global firebase-tools
+          npm install --prefix functions --no-audit --no-fund
+
+      - name: Validate Cloud Functions
+        run: node --check functions/index.js
+
+      - name: Deploy Firestore rules and Cloud Functions
+        run: firebase deploy --only firestore:rules,functions --project gen-lang-client-0963224775 --non-interactive
