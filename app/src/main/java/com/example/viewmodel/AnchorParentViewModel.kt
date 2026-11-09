@@ -308,6 +308,42 @@ class AnchorParentViewModel(
                 }
             } catch (_: Exception) {}
         }
+
+        realtimeListenerJobs += viewModelScope.launch {
+            try {
+                repository.observePairingCodes(familyId).collect { codes ->
+                    val currentCodeId = _uiState.value.pairingCode.codeId
+                    val serverCode = codes.firstOrNull { it.codeId == currentCodeId }
+                    if (serverCode != null && serverCode.status != _uiState.value.pairingCode.status) {
+                        _uiState.update { current ->
+                            if (current.pairingCode.codeId != serverCode.codeId) {
+                                current
+                            } else {
+                                current.copy(
+                                    pairingCode = current.pairingCode.copy(
+                                        status = serverCode.status,
+                                        revoked = serverCode.status == "REVOKED",
+                                        revokedAtEpochMs = serverCode.revokedAtEpochMs,
+                                        expiresAtEpochMs = serverCode.expiresAtEpochMs
+                                    ),
+                                    pairingCountdownSeconds = if (serverCode.status == "ACTIVE") {
+                                        current.pairingCountdownSeconds
+                                    } else {
+                                        0
+                                    },
+                                    statusBannerMessage = when (serverCode.status) {
+                                        "CONSUMED" -> "The Child device has completed secure pairing."
+                                        "REVOKED" -> "The pairing code was revoked."
+                                        "EXPIRED" -> "The pairing code expired. Generate a new one."
+                                        else -> current.statusBannerMessage
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
         realtimeListenerJobs += viewModelScope.launch {
             try {
                 repository.observeAppRules(familyId).collect { rules ->
