@@ -30,13 +30,13 @@ jobs:
       - name: Validate Firebase config and decode release keystore
         env:
           FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
-          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_PROJECT_ID: gen-lang-client-0963224775
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
           ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
           ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
         run: |
-          if [ -z "$FIREBASE_GOOGLE_SERVICES_JSON" ] || [ -z "$FIREBASE_PROJECT_ID" ]; then
-            echo "::error::Add FIREBASE_GOOGLE_SERVICES_JSON and the verified FIREBASE_PROJECT_ID repository variable."
+          if [ -z "$FIREBASE_GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::Add FIREBASE_GOOGLE_SERVICES_JSON for the owner-confirmed Firebase project."
             exit 1
           fi
           if [ -z "$ANDROID_UPLOAD_KEYSTORE_BASE64" ] || [ -z "$ANDROID_UPLOAD_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_UPLOAD_KEY_PASSWORD" ]; then
