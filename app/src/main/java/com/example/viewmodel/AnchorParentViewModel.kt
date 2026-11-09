@@ -518,70 +518,62 @@ class AnchorParentViewModel(
     fun generateNewPairingCode() {
         val state = _uiState.value
         val child = state.selectedChild
-        val newCodeStr = AndroidPlatformHelper.generateSecurePairingCode()
-        val nowMs = System.currentTimeMillis()
-        val codeId = "pair_${child.childId}_$nowMs"
-        val localPairing = PairingCode(
-            id = codeId,
-            codeId = codeId,
+        if (!state.isCloudConnected) {
+            postBannerMessage("Sign in and connect to Anchor Cloud before generating a verifiable pairing code.")
+            return
+        }
+
+        val pendingPairing = PairingCode(
+            id = "",
+            codeId = "",
             familyId = state.familyHousehold.familyId,
             ownerUid = state.currentUserUid,
             childId = child.childId,
             childName = child.name,
-            code = newCodeStr,
-            expiresAtEpochMs = nowMs + AnchorRepository.PAIRING_CODE_TTL_MS,
-            status = "ACTIVE",
+            code = "",
+            expiresAtEpochMs = 0L,
+            status = "PENDING",
             revoked = false,
             attemptCount = 0,
             maxAttempts = 5
         )
         _uiState.update {
             it.copy(
-                pairingCode = localPairing,
-                pairingCountdownSeconds = 600,
-                statusBannerMessage = if (state.isCloudConnected) {
-                    "Generating & registering secure 10-minute pairing code for ${child.name}..."
-                } else {
-                    "Generated local 10-minute pairing code $newCodeStr for ${child.name} (Sign in for Cloud Verification)"
-                }
+                pairingCode = pendingPairing,
+                pairingCountdownSeconds = 0,
+                statusBannerMessage = "Requesting a server-verified 10-minute pairing code for ${child.name}..."
             )
         }
+
         viewModelScope.launch {
-            if (state.isCloudConnected) {
-                try {
-                    val cloudPairing = repository.createPairingCode(
-                        familyId = state.familyHousehold.familyId,
-                        ownerUid = state.currentUserUid,
-                        childId = child.childId,
-                        childName = child.name
+            try {
+                val cloudPairing = repository.createPairingCode(
+                    familyId = state.familyHousehold.familyId,
+                    ownerUid = state.currentUserUid,
+                    childId = child.childId,
+                    childName = child.name
+                )
+                _uiState.update {
+                    it.copy(
+                        pairingCode = cloudPairing,
+                        pairingCountdownSeconds = 600,
+                        statusBannerMessage = "Generated secure 10-minute pairing code ${cloudPairing.code} for ${child.name}"
                     )
-                    _uiState.update {
-                        it.copy(
-                            pairingCode = cloudPairing,
-                            pairingCountdownSeconds = 600,
-                            statusBannerMessage = "Generated cloud-verified 10-minute pairing code ${cloudPairing.code} for ${child.name}"
-                        )
-                    }
-                    recordAuditLog(
-                        eventCode = "#PAIR-301",
-                        actionTitle = "Generated Pairing Code (${cloudPairing.code})",
-                        details = "Target child: ${child.name} • Valid for 10 minutes • Prior codes revoked",
-                        syncState = "ENFORCED"
-                    )
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            statusBannerMessage = "Cloud pairing code registration failed: ${e.localizedMessage ?: "Saved locally"}"
-                        )
-                    }
                 }
-            } else {
                 recordAuditLog(
                     eventCode = "#PAIR-301",
-                    actionTitle = "Generated Local Pairing Code ($newCodeStr)",
-                    details = "Target child: ${child.name} • Valid for 10 minutes (Local Sandbox)",
-                    syncState = "LOCAL_ONLY"
+                    actionTitle = "Generated Pairing Code (${cloudPairing.code})",
+                    details = "Target child: ${child.name} • Valid for 10 minutes • Prior codes revoked by server",
+                    syncState = "ENFORCED"
                 )
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        pairingCode = pendingPairing.copy(status = "FAILED"),
+                        pairingCountdownSeconds = 0,
+                        statusBannerMessage = "Secure pairing code generation failed: ${e.localizedMessage ?: "Please retry."}"
+                    )
+                }
             }
         }
     }
@@ -589,45 +581,40 @@ class AnchorParentViewModel(
     fun revokeCurrentPairingCode() {
         val state = _uiState.value
         val currentCode = state.pairingCode
-        if (currentCode.status == "REVOKED" || currentCode.revoked) {
-            postBannerMessage("Pairing code ${currentCode.code} is already revoked.")
+        if (currentCode.codeId.isBlank() || currentCode.status != "ACTIVE" || currentCode.revoked) {
+            postBannerMessage("There is no active server-issued pairing code to revoke.")
             return
         }
-        val revokedCode = currentCode.copy(
-            status = "REVOKED",
-            revoked = true,
-            revokedAtEpochMs = System.currentTimeMillis()
-        )
-        _uiState.update {
-            it.copy(
-                pairingCode = revokedCode,
-                pairingCountdownSeconds = 0,
-                statusBannerMessage = "Revoked pairing code ${currentCode.code} for ${state.selectedChild.name}"
-            )
+        if (!state.isCloudConnected) {
+            postBannerMessage("Connect to Anchor Cloud to revoke this pairing code on the server.")
+            return
         }
+
         viewModelScope.launch {
-            if (state.isCloudConnected) {
-                try {
-                    repository.revokePairingCode(
-                        familyId = state.familyHousehold.familyId,
-                        codeId = currentCode.codeId
+            try {
+                repository.revokePairingCode(
+                    familyId = state.familyHousehold.familyId,
+                    codeId = currentCode.codeId
+                )
+                _uiState.update {
+                    it.copy(
+                        pairingCode = currentCode.copy(
+                            status = "REVOKED",
+                            revoked = true,
+                            revokedAtEpochMs = System.currentTimeMillis()
+                        ),
+                        pairingCountdownSeconds = 0,
+                        statusBannerMessage = "Revoked pairing code for ${state.selectedChild.name}"
                     )
-                    recordAuditLog(
-                        eventCode = "#PAIR-309",
-                        actionTitle = "Revoked Pairing Code (${currentCode.code})",
-                        details = "Code immediately invalidated in Cloud Firestore",
-                        syncState = "ENFORCED"
-                    )
-                } catch (e: Exception) {
-                    postBannerMessage("Revoked locally; cloud update error: ${e.localizedMessage}")
                 }
-            } else {
                 recordAuditLog(
                     eventCode = "#PAIR-309",
                     actionTitle = "Revoked Pairing Code (${currentCode.code})",
-                    details = "Invalidated in local session",
-                    syncState = "LOCAL_ONLY"
+                    details = "Pairing code invalidated by the trusted server",
+                    syncState = "ENFORCED"
                 )
+            } catch (e: Exception) {
+                postBannerMessage("Could not revoke pairing code on the server: ${e.localizedMessage ?: "Please retry."}")
             }
         }
     }
