@@ -51,7 +51,7 @@ function safeDeviceValue(value, fallback, maxLength) {
  * Parent-only: creates a six-digit, ten-minute, single-use code.
  * Only a hash is stored; the raw code is returned once to the authenticated Parent.
  */
-exports.createPairingCode = onCall(async (request) => {
+exports.createPairingCode = onCall({ region: "asia-south1" }, async (request) => {
   const parentUid = requireAuth(request);
   const familyId = String(request.data && request.data.familyId || "").trim();
   const childId = String(request.data && request.data.childId || "").trim();
@@ -216,7 +216,7 @@ exports.createPairingCode = onCall(async (request) => {
  * Child-only: redeems a code without requiring the Child to know the Parent's familyId.
  * Invalid attempts are committed to the rate-limit document before the callable returns an error.
  */
-exports.redeemPairingCode = onCall(async (request) => {
+exports.redeemPairingCode = onCall({ region: "asia-south1" }, async (request) => {
   const childUid = requireAuth(request);
   const code = normalizePairingCode(request.data && request.data.code);
 
@@ -408,7 +408,7 @@ exports.redeemPairingCode = onCall(async (request) => {
 });
 
 /** Parent-only: revoke a pending code or unpair a registered Child device. */
-exports.revokePairingCode = onCall(async (request) => {
+exports.revokePairingCode = onCall({ region: "asia-south1" }, async (request) => {
   const parentUid = requireAuth(request);
   const familyId = String(request.data && request.data.familyId || "").trim();
   const codeId = String(request.data && request.data.codeId || "").trim();
@@ -498,7 +498,7 @@ exports.revokePairingCode = onCall(async (request) => {
 });
 
 /** Child-only: validates a locally persisted pairing session against server membership. */
-exports.verifyPairingSession = onCall(async (request) => {
+exports.verifyPairingSession = onCall({ region: "asia-south1" }, async (request) => {
   const childUid = requireAuth(request);
   const familyId = String(request.data && request.data.familyId || "").trim();
   const childId = String(request.data && request.data.childId || "").trim();
@@ -547,6 +547,7 @@ exports.onSafetyAlertCreated = onDocumentCreated(
   {
     document: "families/{familyId}/alerts/{alertId}",
     database: DATABASE_ID,
+    region: "asia-south1",
   },
   async (event) => {
     const snap = event.data;
