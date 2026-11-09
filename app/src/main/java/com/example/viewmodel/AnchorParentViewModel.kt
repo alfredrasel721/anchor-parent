@@ -562,7 +562,7 @@ class AnchorParentViewModel(
                 }
                 recordAuditLog(
                     eventCode = "#PAIR-301",
-                    actionTitle = "Generated Pairing Code (${cloudPairing.code})",
+                    actionTitle = "Generated Pairing Code",
                     details = "Target child: ${child.name} • Valid for 10 minutes • Prior codes revoked by server",
                     syncState = "ENFORCED"
                 )
@@ -609,7 +609,7 @@ class AnchorParentViewModel(
                 }
                 recordAuditLog(
                     eventCode = "#PAIR-309",
-                    actionTitle = "Revoked Pairing Code (${currentCode.code})",
+                    actionTitle = "Revoked Pairing Code",
                     details = "Pairing code invalidated by the trusted server",
                     syncState = "ENFORCED"
                 )
