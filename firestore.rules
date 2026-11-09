@@ -352,14 +352,14 @@ service cloud.firestore {
       match /pairingCodes/{codeId} {
         allow get, list: if isFamilyPathOwner(familyId);
         allow create, update, delete: if false;
-      
+      }
 
       // Membership is created/revoked only by the trusted pairing service.
       match /pairedDevices/{deviceId} {
         allow get: if isOwner(deviceId) || isFamilyPathOwner(familyId);
         allow list: if isFamilyPathOwner(familyId);
         allow create, update, delete: if false;
-      
+      }
 
       match /appRules/{ruleId} {
         allow get: if canReadFamilyDoc(familyId);
