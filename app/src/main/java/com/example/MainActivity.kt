@@ -105,7 +105,7 @@ class MainActivity : ComponentActivity() {
                 ?: FirebaseApp.initializeApp(
                     this,
                     FirebaseOptions.Builder()
-                        .setProjectId("gen-lang-client-0963224775")
+                        .setProjectId("demo-anchor-local")
                         .setApplicationId("1:000000000000:android:0000000000000000")
                         .setApiKey("AIzaSyDummyKeyForLocalRobolectricTest")
                         .build()
