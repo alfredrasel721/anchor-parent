@@ -29,22 +29,20 @@ jobs:
 
       - name: Validate Firebase config and decode release keystore
         env:
-          FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
           FIREBASE_PROJECT_ID: gen-lang-client-0963224775
           ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
           ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
           ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
         run: |
-          if [ -z "$FIREBASE_GOOGLE_SERVICES_JSON" ]; then
-            echo "::error::Add FIREBASE_GOOGLE_SERVICES_JSON for the owner-confirmed Firebase project."
+          if [ ! -f app/google-services.json ]; then
+            echo "::error::Missing app/google-services.json in this repository."
             exit 1
           fi
           if [ -z "$ANDROID_UPLOAD_KEYSTORE_BASE64" ] || [ -z "$ANDROID_UPLOAD_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_UPLOAD_KEY_PASSWORD" ]; then
             echo "::error::Add the three Android upload-keystore repository secrets."
             exit 1
           fi
-          printf '%s' "$FIREBASE_GOOGLE_SERVICES_JSON" > app/google-services.json
-          node -e 'const p=JSON.parse(process.env.FIREBASE_GOOGLE_SERVICES_JSON); const expected="com.anchor.parent"; const project=p.project_info?.project_id; const clients=p.client||[]; const android=clients.some(c=>c.client_info?.android_client_info?.package_name===expected && String(c.client_info?.mobilesdk_app_id||"").startsWith("1:")); const web=clients.some(c=>(c.oauth_client||[]).some(o=>String(o.client_type)==="3")); if(project!==process.env.FIREBASE_PROJECT_ID || !android || !web){console.error("Firebase JSON must match FIREBASE_PROJECT_ID, Android package com.anchor.parent, and include a Web OAuth client.");process.exit(1)}'
+          node -e 'const fs=require("fs"); const p=JSON.parse(fs.readFileSync("app/google-services.json","utf8")); const expected="com.anchor.parent"; const project=p.project_info?.project_id; const clients=p.client||[]; const android=clients.some(c=>c.client_info?.android_client_info?.package_name===expected && String(c.client_info?.mobilesdk_app_id||"").startsWith("1:")); const web=clients.some(c=>(c.oauth_client||[]).some(o=>String(o.client_type)==="3")); if(project!==process.env.FIREBASE_PROJECT_ID || !android || !web){console.error("Firebase JSON must match FIREBASE_PROJECT_ID, Android package com.anchor.parent, and include a Web OAuth client.");process.exit(1)}'
           printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
           chmod 600 "$RUNNER_TEMP/upload.jks"
           echo "KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
