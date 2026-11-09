@@ -757,4 +757,116 @@ async function dispatchSos(db, accessToken, projectId, uid, body) {
   const locationLabel = safeDeviceValue(body.locationLabel, "Location unavailable", 240);
   const batteryLevel = Math.max(0, Math.min(100, Number(body.batteryLevel) || 0));
   const isPracticeDrill = body.isPracticeDrill === true;
-  const alertId = body.alertId ? 
+  const alertId = body.alertId ? safePathSegment(body.alertId, "alertId") : `sos_${crypto.randomUUID()}`;
+  const now = new Date();
+  const result = await runTransaction(db, async (tx) => {
+    const [familySnap, childSnap, deviceSnap, topicSnap] = await Promise.all([
+      tx.get(`families/${familyId}`),
+      tx.get(`familys/${familyId}/children/${childId}`),
+      tx.get(`families/${familyId}/pairedDevices/${uid}`),
+      tx.get(`familyNotificationTopics/${familyId}`)
+    ]);
+    if (!familySnap || !childSnap || !deviceSnap) {
+      throw new AppError("permission-denied", "This Child device is not paired to the requested family.", 403);
+    }
+    const family = familySnap.data;
+    const child = childSnap.data;
+    const device = deviceSnap.data;
+    const verified = family.ownerUid === device.ownerUid &&
+      child.ownerUid === family.ownerUid && child.familyId === familyId &&
+      child.childId === childId && child.pairedChildUid === uid &&
+      device.childUid === uid && device.familyId === familyId &&
+      device.childId === childId && device.status === "PAIRED";
+    if (!verified) throw new AppError("permission-denied", "This Child device is no longer paired to this family.", 403);
+    const title = isPracticeDrill
+      ? `SOS Practice Drill Completed (${childName})`
+      : `URGENT SOS Emergency Beacon (${childName})`;
+    const description = `Location: ${locationLabel} • Battery: ${batteryLevel}%" • Dispatched to Primary & Co-Parent Guardians.`;
+    tx.set(`families/${familyId}/alerts/${alertId}`, {
+      alertId, familyId, ownerUid: family.ownerUid, childId, childName,
+      title, description, category: "SOS",
+      severity: isPracticeDrill ? "WARNING" : "CRITICAL",
+      timestampLabel: `Today, ${now.toISOString()}`,
+      acknowledged: false, createdAt: now
+    }, { create: true });
+    return { alertId, title, description, topic: topicSnap?.data.topic || null };
+  });
+  const notificationSent = result.topic
+    ? await sendFcmTopic(accessToken, projectId, result.topic, {
+        title: result.title,
+        body: result.description,
+        priority: isPracticeDrill ? "NORMAL" : "HIGH",
+        data: {
+          familyId, alertId: result.alertId, category: "SOS",
+          severity: isPracticeDrill ? "WARNING" : "CRITICAL"
+        }
+      })
+    : false;
+  return { alertId: result.alertId, notificationSent };
+}
+
+async function readJsonBody(request) {
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 16 * 1024) throw new AppError("invalid-argument", "Request body is too large.", 400);
+  let text;
+  try { text = await request.text(); } catch { throw new AppError("invalid-argument", "Request body could not be read.", 400); }
+  if (text.length > 16 * 1024) throw new AppError("invalid-argument", "Request body is too large.", 400);
+  try { return text ? JSON.parse(text) : {}; }
+  catch { throw new AppError("invalid-argument", "Request body must be valid JSON.", 400); }
+}
+
+export async function handleRequest(request, env) {
+  const url = new URL(request.url);
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
+  if (url.pathname === "/health" && request.method === "GET") {
+    return jsonResponse({ ok: true, service: "anchor-family-api", version: "1.0.0" });
+  }
+  if (request.method !== "POST") return jsonResponse({ error: { code: "not-found", message: "Route not found." } }, 404);
+  const routes = new Set([
+    "/v1/pairing/create", "/v1/pairing/redeem", "/v1/pairing/revoke",
+    "/v1/pairing/verify", "/v1/notifications/topic", "/v1/sos"
+  ]);
+  if (!routes.has(url.pathname)) return jsonResponse({ error: { code: "not-found", message: "Route not found." } }, 404);
+
+  const authorization = request.headers.get("authorization") ?? "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) throw new AppError("unauthenticated", "Sign in before using Anchor.", 401);
+  const projectId = env.FIREBASE_PROJECT_ID || PROJECT_ID;
+  const databaseId = env.FIRESTORE_DATABASE_ID || DATABASE_ID;
+  const user = await verifyFirebaseIdToken(match[1], projectId);
+  const body = await readJsonBody(request);
+  const { serviceAccount } = parseServiceAccount({ ...env, FIREBASE_PROJECT_ID: projectId });
+  const scopes = url.pathname === "/v1/sos"
+    ? [FIRESTORE_SCOPE, FCM_SCOPE]
+    : [FIRESTORE_SCOPE];
+  const accessToken = await getGoogleAccessToken(serviceAccount, scopes);
+  const db = new FirestoreRest(projectId, databaseId, accessToken);
+  const uid = requireUid(user);
+
+  switch (url.pathname) {
+    case "/v1/pairing/create":
+      return jsonResponse(await createPairingCode(db, uid, body));
+    case "/v1/pairing/redeem":
+      return jsonResponse(await redeemPairingCode(db, uid, body));
+    case "/v1/pairing/revoke":
+      return jsonResponse(await revokePairingCode(db, uid, body));
+    case "/v1/pairing/verify":
+      return jsonResponse(await verifyPairingSession(db, uid, body));
+    case "/v1/notifications/topic":
+      return jsonResponse(await getOrCreateSosTopic(db, uid, body));
+    case "/v1/sos":
+      return jsonResponse(await dispatchSos(db, accessToken, projectId, uid, body));
+    default:
+      return jsonResponse({ error: { code: "not-found", message: "Route not found." } }, 404);
+  }
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    try {
+      return await handleRequest(request, env);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  }
+};
