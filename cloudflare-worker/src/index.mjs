@@ -389,7 +389,7 @@ class FirestoreRest {
   }
 
   async get(path, transaction) {
-    const query = transaction ? `?transaction=${encodeURIComponent(transaction)` : "";
+    const query = transaction ? `?transaction=${encodeURIComponent(transaction)}` : "";
     try {
       const document = await this.request("GET", `/${encodePath(path)}${query}`);
       return { id: path.split("/").at(-1), data: decodeFirestoreFields(document.fields), document };
