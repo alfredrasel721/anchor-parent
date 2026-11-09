@@ -154,3 +154,40 @@ tasks.withType<Test>().configureEach {
     "https://maven-central.storage-download.googleapis.com/maven2/"
   )
 }
+
+
+// Prevent accidental release APKs that contain a placeholder Firebase configuration
+// or are signed with missing/incorrect release credentials.
+val validateReleaseFirebaseAndSigningInputs by tasks.registering {
+  doLast {
+    val googleServicesFile = file("google-services.json")
+    if (!googleServicesFile.isFile) {
+      throw GradleException("Release build blocked: add the Firebase Console google-services.json for com.anchor.parent to app/google-services.json.")
+    }
+
+    val googleServicesJson = googleServicesFile.readText()
+    val requiredPatterns = listOf(
+      Regex("\\\"project_id\\\"\\\\s*:\\s*\\\"gen-lang-client-0963224775\\\""),
+      Regex("\\\"package_name\\\"\\\\s*:\\s*\\\"com.anchor.parent\\\""),
+      Regex("\\\"mobilesdk_app_id\\\"\\\\s*:\\s*\\\"1:")
+    )
+    if (requiredPatterns.any { !it.containsMatchIn(googleServicesJson) }) {
+      throw GradleException("Release build blocked: google-services.json must match Firebase project gen-lang-client-0963224775 and Android package com.anchor.parent.")
+    }
+    if (!Regex("\\\"client_type\\\"\\\\s*:\\s*3").containsMatchIn(googleServicesJson)) {
+      throw GradleException("Release build blocked: configure the Web OAuth client for Google sign-in and re-download google-services.json.")
+    }
+
+    val keyStorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+    if (!file(keyStorePath).isFile) {
+      throw GradleException("Release build blocked: provide the existing release upload keystore through KEYSTORE_PATH.")
+    }
+    if (System.getenv("STORE_PASSWORD").isNullOrBlank() || System.getenv("KEY_PASSWORD").isNullOrBlank()) {
+      throw GradleException("Release build blocked: STORE_PASSWORD and KEY_PASSWORD must be configured securely.")
+    }
+  }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+  dependsOn(validateReleaseFirebaseAndSigningInputs)
+}
