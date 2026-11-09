@@ -645,6 +645,7 @@ fun P03AddChildPairCodeScreen(
     val selectedChild = state.selectedChild
     val isCodeRevoked = state.pairingCode.revoked || state.pairingCode.status == "REVOKED"
     val isCodeConsumed = state.pairingCode.status == "CONSUMED"
+    val isCodeActive = state.pairingCode.status == "ACTIVE" && state.pairingCode.code.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -692,7 +693,10 @@ fun P03AddChildPairCodeScreen(
                         when {
                             isCodeRevoked -> "REVOKED"
                             isCodeConsumed -> "CONSUMED"
-                            else -> "VALID 10M TTL"
+                            isCodeActive -> "VALID 10M TTL"
+                            state.pairingCode.status == "PENDING" -> "GENERATING"
+                            state.pairingCode.status == "FAILED" -> "FAILED"
+                            else -> "NO ACTIVE CODE"
                         }
                     )
                 }
@@ -754,7 +758,11 @@ fun P03AddChildPairCodeScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = if (isCodeRevoked) "REVOKED" else state.pairingCode.code,
+                                text = when {
+                                    isCodeRevoked -> "REVOKED"
+                                    isCodeActive -> state.pairingCode.code
+                                    else -> "—"
+                                },
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontSize = 42.sp,
                                     letterSpacing = 6.sp,
@@ -765,10 +773,10 @@ fun P03AddChildPairCodeScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = if (isCodeRevoked) {
-                                    "Code invalidated by Guardian • Tap 'New Code' to issue a fresh token"
-                                } else {
-                                    "One-Time Cryptographic Token (10-min TTL) • Target: ${selectedChild.deviceName}"
+                                text = when {
+                                    isCodeRevoked -> "Code invalidated by Guardian • Tap 'New Code' to issue a fresh token"
+                                    isCodeActive -> "One-time server-verified code • Expires in 10 minutes • Target: ${selectedChild.deviceName}"
+                                    else -> "No active code. Tap 'New Code' to request a secure passcode."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -776,6 +784,13 @@ fun P03AddChildPairCodeScreen(
                             )
                         }
                     }
+                } else if (!isCodeActive) {
+                    Text(
+                        text = "Generate an active passcode first. QR scanning is not enabled; use the six-digit passcode in Anchor Child.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 } else {
                     // Deterministic visual QR matrix rendered on Canvas
                     Surface(
@@ -808,7 +823,7 @@ fun P03AddChildPairCodeScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Scan from Anchor Child App on ${selectedChild.deviceName}",
+                        text = "QR preview only. QR scanning is not enabled; enter the six-digit code in Anchor Child.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -822,7 +837,7 @@ fun P03AddChildPairCodeScreen(
                 ) {
                     OutlinedButton(
                         onClick = onCopyCode,
-                        enabled = !isCodeRevoked,
+                        enabled = isCodeActive,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("copy_pairing_code_btn")
@@ -843,7 +858,7 @@ fun P03AddChildPairCodeScreen(
                     }
                     OutlinedButton(
                         onClick = onRevokeCode,
-                        enabled = !isCodeRevoked,
+                        enabled = isCodeActive,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("revoke_pairing_code_btn")
@@ -903,7 +918,7 @@ fun P03AddChildPairCodeScreen(
                             ) {
                                 Column {
                                     Text("${dev.childName} • ${dev.deviceName}", style = MaterialTheme.typography.titleSmall)
-                                    Text("UID: ${dev.childUid} • Code: ${dev.redeemedCode}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Device UID: ${dev.childUid}", style = MaterialTheme.typography.bodySmall)
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
                                     StatusBadge(dev.status)
@@ -942,7 +957,7 @@ fun P03AddChildPairCodeScreen(
                 }
                 Text(
                     text = "1. Install Anchor Child Companion on ${selectedChild.name}'s Android device.\n" +
-                        "2. Enter passcode ${state.pairingCode.code} or scan the QR matrix above.\n" +
+                        (if (isCodeActive) "2. Enter passcode ${state.pairingCode.code} in Anchor Child.\n" else "2. Generate a one-time passcode and enter it in Anchor Child.\n") +
                         "3. Review the transparent Family Charter together with ${selectedChild.name} and grant Usage Stats, Accessibility & Location permissions.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
