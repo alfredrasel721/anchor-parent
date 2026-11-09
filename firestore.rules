@@ -318,6 +318,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The FCM topic is a server-only secret. Mobile clients must never read or write it.
+    match /familyNotificationTopics/{familyId} {
+      allow read, write: if false;
+    }
+
     match /pairingCodeLookupIndexes/{codeId} {
       allow read, write: if false;
     }
