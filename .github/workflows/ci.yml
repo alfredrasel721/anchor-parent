@@ -39,6 +39,13 @@ jobs:
           keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
       - name: Run unit tests and assemble debug APK
         run: gradle --no-daemon :app:testDebugUnitTest :app:assembleDebug --stacktrace
+      - name: Upload debug APK for device smoke testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: anchor-parent-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
 
   cloud-functions:
     name: Cloud Functions syntax and dependency check
