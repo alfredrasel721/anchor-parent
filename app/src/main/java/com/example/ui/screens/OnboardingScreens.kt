@@ -609,31 +609,7 @@ fun P03AddChildPairCodeScreen(
     onSelectChild: (String) -> Unit,
     onGenerateNewCode: () -> Unit,
     onRevokeCode: () -> Unit = {
-    deviceToUnpair?.let { (deviceUid, childName) ->
-        AlertDialog(
-            onDismissRequest = { deviceToUnpair = null },
-            title = { Text("Unpair Child Device?") },
-            text = {
-                Text("This disconnects $childName from this household. The device will need a new one-time code from Anchor Parent to reconnect.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        deviceToUnpair = null
-                        onUnpairDevice(deviceUid)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = AnchorError)
-                ) {
-                    Text("Unpair Device")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deviceToUnpair = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+
 },
     onUnpairDevice: (String) -> Unit = {},
     onCopyCode: () -> Unit,
@@ -976,6 +952,32 @@ fun P03AddChildPairCodeScreen(
                 }
             }
         }
+    }
+
+    deviceToUnpair?.let { (deviceUid, childName) ->
+        AlertDialog(
+            onDismissRequest = { deviceToUnpair = null },
+            title = { Text("Unpair Child Device?") },
+            text = {
+                Text("This disconnects $childName from this household. The device will need a new one-time code from Anchor Parent to reconnect.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deviceToUnpair = null
+                        onUnpairDevice(deviceUid)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AnchorError)
+                ) {
+                    Text("Unpair Device")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToUnpair = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
