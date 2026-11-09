@@ -71,4 +71,4 @@ jobs:
       - name: Install Firebase emulator and rules test library
         run: npm install --global firebase-tools @firebase/rules-unit-testing
       - name: Run Firestore emulator security tests
-        run: firebase emulators:exec --only firestore --project gen-lang-client-0963224775 'NODE_PATH="$(npm root -g)" node --test firestore.test.js'
+        run: firebase emulators:exec --only firestore --project demo-anchor-local 'NODE_PATH="$(npm root -g)" node --test firestore.test.js'
