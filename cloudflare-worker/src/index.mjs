@@ -621,3 +621,70 @@ async function redeemPairingCode(db, uid, body) {
   return outcome;
 }
 
+
+async function revokePairingCode(db, uid, body) {
+  const familyId = safePathSegment(body.familyId, "familyId");
+  const codeId = body.codeId ? safePathSegment(body.codeId, "codeId") : "";
+  const deviceUid = body.deviceUid ? safePathSegment(body.deviceUid, "deviceUid") : "";
+  if (familyId !== `fam_${uid}` || (!codeId && !deviceUid)) {
+    throw new AppError("invalid-argument", "A valid familyId and codeId or deviceUid are required.", 400);
+  }
+  const nowMs = Date.now();
+  await runTransaction(db, async (tx) => {
+    const familySnap = await tx.get(`families/${familyId}`);
+    if (!familySnap || familySnap.data.ownerUid !== uid) {
+      throw new AppError("permission-denied", "Only the family owner can revoke pairing.", 403);
+    }
+    let codeSnap = null;
+    let indexSnap = null;
+    let deviceSnap = null;
+    let childSnap = null;
+    if (codeId) {
+      [codeSnap, indexSnap] = await Promise.all([
+        tx.get(`families/${familyId}/pairingCodes/${codeId}`),
+        tx.get(`pairingCodeLookupIndexes/${codeId}`)
+      ]);
+      if (!codeSnap || codeSnap.data.ownerUid !== uid) {
+        throw new AppError("not-found", "Pairing code not found for this family.", 404);
+      }
+    }
+    if (deviceUid) {
+      deviceSnap = await tx.get(`families/${familyId}/pairedDevices/${deviceUid}`);
+      if (deviceSnap) {
+        childSnap = await tx.get(`families/${familyId}/children/${safePathSegment(deviceSnap.data.childId, "childId")}`);
+        if (deviceSnap.data.ownerUid !== uid) {
+          throw new AppError("permission-denied", "Device does not belong to this family.", 403);
+        }
+      }
+    }
+    if (codeSnap) {
+      tx.update(`families/${familyId}/pairingCodes/${codeId}`, {
+        status: "REVOKED", revoked: true, revokedAtEpochMs: nowMs
+      });
+      const lookupId = indexSnap?.data.lookupId || codeSnap.data.codeHash;
+      if (lookupId) tx.delete(`pairingCodeLookups/${safePathSegment(lookupId, "lookupId", 128)}`);
+      if (indexSnap) tx.delete(`pairingCodeLookupIndexes/${codeId}`);
+    }
+    if (deviceSnap) {
+      tx.delete(`families/${familyId}/pairedDevices/${deviceUid}`);
+      if (childSnap && childSnap.data.pairedChildUid === deviceUid) {
+        tx.update(`families/${familyId}/children/${deviceSnap.data.childId}`, {
+          pairedChildUid: DELETE_FIELD, syncStatus: "PENDING",
+          lastSyncLabel: "Device unpaired by Parent", updatedAt: new Date(nowMs)
+        });
+      }
+    }
+  });
+  return { revoked: true, familyId, codeId: codeId || null, deviceUid: deviceUid || null };
+}
+
+async function verifyPairingSession(db, uid, body) {
+  const familyId = safePathSegment(body.familyId, "familyId");
+  const childId = safePathSegment(body.childId, "childId");
+  return runTransaction(db, async (tx) => {
+    const [familySnap, childSnap, deviceSnap] = await Promise.all([
+      tx.get(`families/${familyId}`),
+      tx.get(`families/${familyId}/children/${childId}`),
+      tx.get(`families/${familyId}/pairedDevices/${uid}`)
+    ]);
+    
