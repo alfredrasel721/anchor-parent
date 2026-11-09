@@ -183,8 +183,8 @@ val validateReleaseFirebaseAndSigningInputs by tasks.registering {
         oauthClient?.get("client_type")?.toString() == "3"
       }
     }
-    if (projectInfo?.get("project_id") != "gen-lang-client-0963224775" || !hasMatchingAndroidApp) {
-      throw GradleException("Release build blocked: google-services.json must match Firebase project gen-lang-client-0963224775 and Android package com.anchor.parent.")
+    if ((projectInfo?.get("project_id") as? String).isNullOrBlank() || !hasMatchingAndroidApp) {
+      throw GradleException("Release build blocked: google-services.json must contain a Firebase project ID and the Android package com.anchor.parent.")
     }
     if (!hasWebOAuthClient) {
       throw GradleException("Release build blocked: configure the Web OAuth client for Google sign-in and re-download google-services.json.")
