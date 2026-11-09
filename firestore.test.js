@@ -7,7 +7,7 @@ const {
   assertFails,
 } = require('@firebase/rules-unit-testing');
 
-const PROJECT_ID = 'gen-lang-client-0963224775';
+const PROJECT_ID = 'demo-anchor-local';
 const DATABASE_ID = 'ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e';
 
 let testEnv;
