@@ -165,17 +165,28 @@ val validateReleaseFirebaseAndSigningInputs by tasks.registering {
       throw GradleException("Release build blocked: add the Firebase Console google-services.json for com.anchor.parent to app/google-services.json.")
     }
 
-    val googleServicesJson = googleServicesFile.readText()
-    val matchesProject = googleServicesJson.contains("\\"project_id\\"") &&
-      googleServicesJson.contains("\\"gen-lang-client-0963224775\\"")
-    val matchesAndroidPackage = googleServicesJson.contains("\\"package_name\\"") &&
-      googleServicesJson.contains("\\"com.anchor.parent\\"")
-    val hasFirebaseAppId = googleServicesJson.contains("\\"mobilesdk_app_id\\"") &&
-      googleServicesJson.contains("\\"1:")
-    if (!matchesProject || !matchesAndroidPackage || !hasFirebaseAppId) {
+    val googleServices = groovy.json.JsonSlurper().parse(googleServicesFile) as Map<*, *>
+    val projectInfo = googleServices["project_info"] as? Map<*, *>
+    val clients = googleServices["client"] as? List<*>
+    val hasMatchingAndroidApp = clients.orEmpty().any { item ->
+      val client = item as? Map<*, *>
+      val clientInfo = client?.get("client_info") as? Map<*, *>
+      val androidInfo = clientInfo?.get("android_client_info") as? Map<*, *>
+      val appId = clientInfo?.get("mobilesdk_app_id") as? String
+      androidInfo?.get("package_name") == "com.anchor.parent" && appId?.startsWith("1:") == true
+    }
+    val hasWebOAuthClient = clients.orEmpty().any { item ->
+      val client = item as? Map<*, *>
+      val oauthClients = client?.get("oauth_client") as? List<*>
+      oauthClients.orEmpty().any { oauth ->
+        val oauthClient = oauth as? Map<*, *>
+        oauthClient?.get("client_type")?.toString() == "3"
+      }
+    }
+    if (projectInfo?.get("project_id") != "gen-lang-client-0963224775" || !hasMatchingAndroidApp) {
       throw GradleException("Release build blocked: google-services.json must match Firebase project gen-lang-client-0963224775 and Android package com.anchor.parent.")
     }
-    if (!Regex("\\"client_type\\"\\\\s*:\\s*3").containsMatchIn(googleServicesJson)) {
+    if (!hasWebOAuthClient) {
       throw GradleException("Release build blocked: configure the Web OAuth client for Google sign-in and re-download google-services.json.")
     }
 
