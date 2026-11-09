@@ -476,6 +476,20 @@ class AnchorRepository(
         awaitClose { registration.remove() }
     }
 
+    fun observePairingCodes(familyId: String): Flow<List<PairingCode>> = callbackFlow {
+        val path = "families/$familyId/pairingCodes"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(PairingCode::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
     fun observePairedDevices(familyId: String): Flow<List<PairedDevice>> = callbackFlow {
         val path = "families/$familyId/pairedDevices"
         val registration = db.collection(path).addSnapshotListener { snapshot, error ->
