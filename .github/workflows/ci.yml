@@ -64,3 +64,88 @@ jobs:
         run: npm install --global firebase-tools @firebase/rules-unit-testing
       - name: Run Firestore emulator security tests
         run: firebase emulators:exec --only firestore --project demo-anchor-local 'NODE_PATH="$(npm root -g)" node --test firestore.test.js'
+
+  firebase-database-eligibility:
+    name: Check Firestore database free-tier eligibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect the existing Firestore database billing metadata
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: gen-lang-client-0963224775
+          FIRESTORE_DATABASE_ID: ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT is not available to this workflow; Firestore free-tier eligibility was not checked."
+            exit 0
+          fi
+          node <<'NODE'
+          const crypto = require("node:crypto");
+          const credentials = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          if (credentials.project_id !== process.env.FIREBASE_PROJECT_ID ||
+              !credentials.client_email || !credentials.private_key) {
+            throw new Error("FIREBASE_SERVICE_ACCOUNT does not match the configured Firebase project.");
+          }
+          const now = Math.floor(Date.now() / 1000);
+          const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+          const unsigned = [
+            encode({ alg: "RS256", typ: "JWT" }),
+            encode({
+              iss: credentials.client_email,
+              scope: "https://www.googleapis.com/auth/cloud-platform",
+              aud: "https://oauth2.googleapis.com/token",
+              iat: now,
+              exp: now + 3600
+            })
+          ].join(".");
+          const signer = crypto.createSign("RSA-SHA256");
+          signer.update(unsigned);
+          signer.end();
+          const assertion = unsigned + "." + signer.sign(credentials.private_key, "base64url");
+          (async () => {
+            const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+              method: "POST",
+              headers: { "content-type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                assertion
+              })
+            });
+            if (!tokenResponse.ok) {
+              throw new Error("Google OAuth token exchange failed (HTTP " + tokenResponse.status + ").");
+            }
+            const { access_token: accessToken } = await tokenResponse.json();
+            const url = "https://firestore.googleapis.com/v1/projects/" +
+              encodeURIComponent(process.env.FIREBASE_PROJECT_ID) +
+              "/databases/" + encodeURIComponent(process.env.FIRESTORE_DATABASE_ID);
+            const databaseResponse = await fetch(url, {
+              headers: { authorization: "Bearer " + accessToken }
+            });
+            if (!databaseResponse.ok) {
+              const detail = await databaseResponse.text();
+              if (databaseResponse.status === 403) {
+                console.log("::warning::Firestore database metadata permission is missing. Grant the service account Cloud Datastore Viewer (roles/datastore.viewer), then rerun this check.");
+                console.log("Metadata response: " + detail.slice(0, 500));
+                return;
+              }
+              throw new Error("Firestore database metadata lookup failed (HTTP " + databaseResponse.status + "): " + detail.slice(0, 500));
+            }
+            const database = await databaseResponse.json();
+            console.log("Database ID: " + process.env.FIRESTORE_DATABASE_ID);
+            console.log("Database location: " + (database.locationId || "not reported"));
+            console.log("Database type: " + (database.type || "not reported"));
+            console.log("Firestore freeTier: " + String(database.freeTier));
+            if (database.freeTier !== true) {
+              console.log("::warning::This database is not confirmed as free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");
+            } else {
+              console.log("Firestore database metadata confirms free-tier eligibility.");
+            }
+          })().catch((error) => {
+            console.error(error.message);
+            process.exitCode = 1;
+          });
+          NODE
+
