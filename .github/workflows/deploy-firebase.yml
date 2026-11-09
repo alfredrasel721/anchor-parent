@@ -1,10 +1,10 @@
-name: Deploy Anchor Firebase backend
+name: Deploy Anchor Firestore rules
 
 on:
   workflow_dispatch:
     inputs:
       confirm_production:
-        description: "Type DEPLOY to deploy Firestore rules and Cloud Functions to the configured Firebase project."
+        description: "Type DEPLOY_RULES to publish the checked-in Firestore rules."
         required: true
         type: string
 
@@ -13,8 +13,8 @@ permissions:
 
 jobs:
   deploy:
-    name: Deploy Firestore rules and Cloud Functions
-    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.confirm_production == 'DEPLOY' }}
+    name: Deploy Firestore security rules only
+    if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.confirm_production == 'DEPLOY_RULES' }}
     runs-on: ubuntu-latest
     env:
       FIREBASE_PROJECT_ID: gen-lang-client-0963224775
@@ -25,10 +25,9 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate deployment configuration
+      - name: Validate Firebase service account
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_PROJECT_ID: gen-lang-client-0963224775
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
             echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT."
@@ -39,13 +38,8 @@ jobs:
           chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
 
-      - name: Install Firebase CLI and Cloud Functions dependencies
-        run: |
-          npm install --global firebase-tools
-          npm install --prefix functions --no-audit --no-fund
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
 
-      - name: Validate Cloud Functions
-        run: node --check functions/index.js
-
-      - name: Deploy Firestore rules and Cloud Functions
-        run: firebase deploy --only firestore:rules,functions --project "$FIREBASE_PROJECT_ID" --non-interactive
+      - name: Deploy Firestore rules only
+        run: firebase deploy --only firestore:rules --project "$FIREBASE_PROJECT_ID" --non-interactive
