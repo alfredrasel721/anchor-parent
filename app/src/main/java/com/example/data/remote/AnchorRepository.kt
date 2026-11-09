@@ -31,7 +31,7 @@ class AnchorRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
-    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance("us-central1")
+    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance("asia-south1")
     companion object {
         const val PAIRING_CODE_TTL_MS = 10 * 60 * 1000L // 10 minutes
 
