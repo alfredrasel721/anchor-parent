@@ -566,7 +566,7 @@ async function createPairingCode(db, uid, body) {
 
 async function redeemPairingCode(db, uid, body) {
   const code = normalizePairingCode(body.code);
-  if (!code) throw new AppError"invalid-argument", "Enter the six-digit code shown in Anchor Parent.", 400);
+  if (!code) throw new AppError("invalid-argument", "Enter the six-digit code shown in Anchor Parent.", 400);
   const deviceName = safeDeviceValue(body.deviceName, "Android Child Device", 100);
   const deviceModel = safeDeviceValue(body.deviceModel, "Android", 100);
   const osVersion = safeDeviceValue(body.osVersion, "Android", 50);
