@@ -145,6 +145,14 @@ class AnchorRepository(
             .await()
     }
 
+    suspend fun unpairChildDevice(familyId: String, deviceUid: String) {
+        require(auth.currentUser != null) { "Sign in before unpairing a Child device." }
+        require(deviceUid.isNotBlank()) { "A Child device ID is required." }
+        functions.getHttpsCallable("revokePairingCode")
+            .call(mapOf("familyId" to familyId, "deviceUid" to deviceUid))
+            .await()
+    }
+
     /**
      * Pairing documents are server-managed. Keeping this method prevents old callers
      * from silently writing raw pairing secrets to Firestore.
