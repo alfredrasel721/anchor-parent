@@ -16,6 +16,8 @@ jobs:
     name: Deploy Firestore rules and Cloud Functions
     if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.confirm_production == 'DEPLOY' }}
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
 
