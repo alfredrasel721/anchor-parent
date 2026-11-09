@@ -64,7 +64,6 @@ async function seedVerifiedFamily() {
       childId,
       childName: 'Leo',
       code: '',
-      codeHash: 'not-a-client-secret',
       expiresAtEpochMs: Date.now() + 600000,
       status: 'ACTIVE',
       revoked: false,
