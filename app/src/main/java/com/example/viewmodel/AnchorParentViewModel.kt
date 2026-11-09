@@ -620,15 +620,23 @@ class AnchorParentViewModel(
     }
 
     fun copyPairingCodeToClipboard(context: Context) {
-        val code = _uiState.value.pairingCode.code
+        val pairing = _uiState.value.pairingCode
+        if (pairing.status != "ACTIVE" || pairing.code.isBlank()) {
+            postBannerMessage("Generate a valid server-verified pairing code before copying.")
+            return
+        }
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Anchor Pairing Code", code))
-        postBannerMessage("Copied pairing code $code to clipboard")
+        clipboard?.setPrimaryClip(ClipData.newPlainText("Anchor Pairing Code", pairing.code))
+        postBannerMessage("Copied pairing code ${pairing.code} to clipboard")
     }
 
     fun sharePairingInstructions(context: Context) {
         val state = _uiState.value
         val child = state.selectedChild
+        if (state.pairingCode.status != "ACTIVE" || state.pairingCode.code.isBlank()) {
+            postBannerMessage("Generate a valid server-verified pairing code before sharing.")
+            return
+        }
         val shareText = buildString {
             appendLine("Anchor Family Guardian — Child Device Pairing")
             appendLine("Household: ${state.familyHousehold.familyName} (${state.familyHousehold.familyId})")
