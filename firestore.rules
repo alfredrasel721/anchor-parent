@@ -352,33 +352,14 @@ service cloud.firestore {
       match /pairingCodes/{codeId} {
         allow get, list: if isFamilyPathOwner(familyId);
         allow create, update, delete: if false;
-      } {
-        allow get: if isAuthenticated();
-        allow list: if isFamilyPathOwner(familyId);
-        allow create: if isCreatingAsOwner() && isValidPairingCode(request.resource.data, familyId);
-        allow update: if (isDocOwner() && ownerUnchanged() && isValidPairingCode(request.resource.data, familyId)) ||
-          isValidChildPairingConsumption(familyId);
-        allow delete: if isDocOwner();
-      }
+      
 
       // Membership is created/revoked only by the trusted pairing service.
       match /pairedDevices/{deviceId} {
         allow get: if isOwner(deviceId) || isFamilyPathOwner(familyId);
         allow list: if isFamilyPathOwner(familyId);
         allow create, update, delete: if false;
-      } {
-        allow get: if canReadFamilyDoc(familyId) || isOwner(deviceId);
-        allow list: if canListFamilyCollection(familyId);
-        allow create: if isValidVerifiedPairedDeviceCreation(familyId, deviceId);
-        allow update: if (isDocOwner() && ownerUnchanged()) ||
-          (isOwner(deviceId) &&
-            resource.data.status == 'PAIRED' &&
-            request.resource.data.status == 'PAIRED' &&
-            request.resource.data.familyId == resource.data.familyId &&
-            request.resource.data.childId == resource.data.childId &&
-            request.resource.data.ownerUid == resource.data.ownerUid);
-        allow delete: if isDocOwner() || isFamilyPathOwner(familyId);
-      }
+      
 
       match /appRules/{ruleId} {
         allow get: if canReadFamilyDoc(familyId);
