@@ -106,6 +106,15 @@ Under **Secrets**, add:
 
 The release Gradle configuration currently expects the keystore alias `upload`. If the existing keystore uses a different alias, update the Gradle configuration before building.
 
+If no release keystore exists and neither app has ever been published, you can create a new key in **Google Cloud Shell** (browser-based; no local Android Studio required). Do not do this if an app already has a release key that must be preserved.
+
+```bash
+keytool -genkeypair -v -keystore anchor-parent-upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+base64 -w 0 anchor-parent-upload.jks
+```
+
+Use a strong password when prompted. Copy the resulting Base64 text directly into the matching GitHub Actions secret. Repeat with a different filename for the Child app if it needs its own key. Keep the original `.jks` file and passwords in a safe offline backup. Never paste the Base64 string or passwords into ChatGPT, a public issue, or a repository file.
+
 **Never paste a service-account JSON key, keystore, or keystore password into ChatGPT or commit them to Git.** Store them only as GitHub Actions secrets. The Firebase `google-services.json` file contains app/project identifiers and OAuth client configuration; this repository's release workflow reads it from a GitHub secret rather than committing it.
 
 ### Create the deployment service account
