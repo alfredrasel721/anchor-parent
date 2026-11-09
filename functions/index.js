@@ -104,17 +104,21 @@ exports.createPairingCode = onCall(async (request) => {
       let oldCodeRef = null;
       let oldCodeSnap = null;
       let oldLookupRef = null;
+      let oldLookupIndexRef = null;
+      let oldLookupIndexSnap = null;
 
       if (oldCodeId) {
         oldCodeRef = db.doc("families/" + familyId + "/pairingCodes/" + oldCodeId);
-        oldCodeSnap = await tx.get(oldCodeRef);
-        const oldLookupQuery = db.collection("pairingCodeLookups")
-          .where("familyId", "==", familyId)
-          .where("codeId", "==", oldCodeId)
-          .limit(1);
-        const oldLookupSnap = await tx.get(oldLookupQuery);
-        if (!oldLookupSnap.empty) {
-          oldLookupRef = oldLookupSnap.docs[0].ref;
+        oldLookupIndexRef = db.doc("pairingCodeLookupIndexes/" + oldCodeId);
+        const [oldCodeResult, oldIndexResult] = await Promise.all([
+          tx.get(oldCodeRef),
+          tx.get(oldLookupIndexRef),
+        ]);
+        oldCodeSnap = oldCodeResult;
+        oldLookupIndexSnap = oldIndexResult;
+        if (oldLookupIndexSnap.exists && oldLookupIndexSnap.data().lookupId) {
+          oldLookupRef = db.doc("pairingCodeLookups/" + oldLookupIndexSnap.data().lookupId);
+          await tx.get(oldLookupRef);
         }
       }
 
@@ -127,6 +131,9 @@ exports.createPairingCode = onCall(async (request) => {
       }
       if (oldLookupRef) {
         tx.delete(oldLookupRef);
+      }
+      if (oldLookupIndexRef && oldLookupIndexSnap && oldLookupIndexSnap.exists) {
+        tx.delete(oldLookupIndexRef);
       }
 
       tx.set(codeRef, {
@@ -154,6 +161,14 @@ exports.createPairingCode = onCall(async (request) => {
         ownerUid: parentUid,
         status: "ACTIVE",
         expiresAtEpochMs: expiresAtEpochMs,
+        createdAtEpochMs: nowMs,
+      });
+
+      tx.set(db.doc("pairingCodeLookupIndexes/" + codeId), {
+        familyId: familyId,
+        codeId: codeId,
+        lookupId: codeHash,
+        status: "ACTIVE",
         createdAtEpochMs: nowMs,
       });
 
@@ -251,16 +266,19 @@ exports.redeemPairingCode = onCall(async (request) => {
     const familyRef = db.doc("families/" + familyId);
     const childRef = db.doc("families/" + familyId + "/children/" + String(lookup.childId || ""));
     const deviceRef = db.doc("families/" + familyId + "/pairedDevices/" + childUid);
+    const lookupIndexRef = db.doc("pairingCodeLookupIndexes/" + codeId);
 
-    const [codeSnap, familySnap, childSnap, deviceSnap] = await Promise.all([
+    const [codeSnap, familySnap, childSnap, deviceSnap, lookupIndexSnap] = await Promise.all([
       tx.get(codeRef),
       tx.get(familyRef),
       tx.get(childRef),
       tx.get(deviceRef),
+      tx.get(lookupIndexRef),
     ]);
 
     if (!codeSnap.exists || !familySnap.exists || !childSnap.exists) {
       tx.delete(lookupRef);
+      if (lookupIndexSnap.exists) tx.delete(lookupIndexRef);
       return {
         errorCode: "failed-precondition",
         errorMessage: "The Parent profile is no longer available. Ask the Parent to generate a new code.",
@@ -271,9 +289,10 @@ exports.redeemPairingCode = onCall(async (request) => {
     const familyData = familySnap.data();
     const childData = childSnap.data();
 
-    if (codeData.status !== "ACTIVE" || codeData.codeHash !== codeHash ||
+    if (codeData.status !== "ACTIVE" ||
         lookup.expiresAtEpochMs !== codeData.expiresAtEpochMs) {
       tx.delete(lookupRef);
+      if (lookupIndexSnap.exists) tx.delete(lookupIndexRef);
       return {
         errorCode: "failed-precondition",
         errorMessage: "This pairing code has already been used or revoked.",
@@ -283,6 +302,7 @@ exports.redeemPairingCode = onCall(async (request) => {
     if (Number(codeData.expiresAtEpochMs || 0) <= nowMs) {
       tx.update(codeRef, { status: "EXPIRED" });
       tx.delete(lookupRef);
+      if (lookupIndexSnap.exists) tx.delete(lookupIndexRef);
       return {
         errorCode: "deadline-exceeded",
         errorMessage: "This pairing code expired. Ask the Parent for a new code.",
@@ -321,6 +341,7 @@ exports.redeemPairingCode = onCall(async (request) => {
       consumedAtEpochMs: nowMs,
     });
     tx.delete(lookupRef);
+    if (lookupIndexSnap.exists) tx.delete(lookupIndexRef);
 
     tx.set(deviceRef, {
       deviceId: childUid,
@@ -394,6 +415,8 @@ exports.revokePairingCode = onCall(async (request) => {
     let codeRef = null;
     let codeSnap = null;
     let lookupRef = null;
+    let lookupIndexRef = null;
+    let lookupIndexSnap = null;
     let deviceRef = null;
     let deviceSnap = null;
     let childRef = null;
@@ -401,14 +424,16 @@ exports.revokePairingCode = onCall(async (request) => {
 
     if (codeId) {
       codeRef = db.doc("families/" + familyId + "/pairingCodes/" + codeId);
-      codeSnap = await tx.get(codeRef);
-      const lookupQuery = db.collection("pairingCodeLookups")
-        .where("familyId", "==", familyId)
-        .where("codeId", "==", codeId)
-        .limit(1);
-      const lookupSnap = await tx.get(lookupQuery);
-      if (!lookupSnap.empty) {
-        lookupRef = lookupSnap.docs[0].ref;
+      lookupIndexRef = db.doc("pairingCodeLookupIndexes/" + codeId);
+      const [codeResult, indexResult] = await Promise.all([
+        tx.get(codeRef),
+        tx.get(lookupIndexRef),
+      ]);
+      codeSnap = codeResult;
+      lookupIndexSnap = indexResult;
+      if (lookupIndexSnap.exists && lookupIndexSnap.data().lookupId) {
+        lookupRef = db.doc("pairingCodeLookups/" + lookupIndexSnap.data().lookupId);
+        await tx.get(lookupRef);
       }
     }
 
@@ -433,6 +458,9 @@ exports.revokePairingCode = onCall(async (request) => {
         revokedAtEpochMs: nowMs,
       });
       if (lookupRef) tx.delete(lookupRef);
+      if (lookupIndexRef && lookupIndexSnap && lookupIndexSnap.exists) {
+        tx.delete(lookupIndexRef);
+      }
     }
 
     if (deviceUid && deviceSnap && deviceSnap.exists) {
