@@ -100,40 +100,51 @@ exports.createPairingCode = onCall(async (request) => {
         return { collision: true };
       }
 
-      const oldCodeId = String(currentChildSnap.data().activePairingCodeId || "");
-      let oldCodeRef = null;
-      let oldCodeSnap = null;
-      let oldLookupRef = null;
-      let oldLookupIndexRef = null;
-      let oldLookupIndexSnap = null;
+      const activeCodesQuery = db.collection("families/" + familyId + "/pairingCodes")
+        .where("childId", "==", childId);
+      const activeCodesSnap = await tx.get(activeCodesQuery);
+      const staleActiveCodes = [];
 
-      if (oldCodeId) {
-        oldCodeRef = db.doc("families/" + familyId + "/pairingCodes/" + oldCodeId);
-        oldLookupIndexRef = db.doc("pairingCodeLookupIndexes/" + oldCodeId);
-        const [oldCodeResult, oldIndexResult] = await Promise.all([
-          tx.get(oldCodeRef),
-          tx.get(oldLookupIndexRef),
-        ]);
-        oldCodeSnap = oldCodeResult;
-        oldLookupIndexSnap = oldIndexResult;
-        if (oldLookupIndexSnap.exists && oldLookupIndexSnap.data().lookupId) {
-          oldLookupRef = db.doc("pairingCodeLookups/" + oldLookupIndexSnap.data().lookupId);
-          await tx.get(oldLookupRef);
+      for (const activeCodeSnap of activeCodesSnap.docs) {
+        const activeCode = activeCodeSnap.data();
+        if (activeCode.status !== "ACTIVE") continue;
+
+        const indexRef = db.doc("pairingCodeLookupIndexes/" + activeCodeSnap.id);
+        const indexSnap = await tx.get(indexRef);
+        const lookupRefs = [];
+
+        if (indexSnap.exists && indexSnap.data().lookupId) {
+          lookupRefs.push(db.doc("pairingCodeLookups/" + indexSnap.data().lookupId));
         }
+        // Clean up legacy hashes written by earlier builds, without exposing them to clients.
+        if (activeCode.codeHash) {
+          lookupRefs.push(db.doc("pairingCodeLookups/" + activeCode.codeHash));
+        }
+
+        for (const staleLookupRef of lookupRefs) {
+          await tx.get(staleLookupRef);
+        }
+
+        staleActiveCodes.push({
+          codeRef: activeCodeSnap.ref,
+          indexRef: indexRef,
+          indexExists: indexSnap.exists,
+          lookupRefs: lookupRefs,
+        });
       }
 
-      if (oldCodeSnap && oldCodeSnap.exists && oldCodeSnap.data().status === "ACTIVE") {
-        tx.update(oldCodeRef, {
+      for (const stale of staleActiveCodes) {
+        tx.update(stale.codeRef, {
           status: "REVOKED",
           revoked: true,
           revokedAtEpochMs: nowMs,
         });
-      }
-      if (oldLookupRef) {
-        tx.delete(oldLookupRef);
-      }
-      if (oldLookupIndexRef && oldLookupIndexSnap && oldLookupIndexSnap.exists) {
-        tx.delete(oldLookupIndexRef);
+        for (const staleLookupRef of stale.lookupRefs) {
+          tx.delete(staleLookupRef);
+        }
+        if (stale.indexExists) {
+          tx.delete(stale.indexRef);
+        }
       }
 
       tx.set(codeRef, {
