@@ -17,7 +17,7 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' && github.event.inputs.confirm_production == 'DEPLOY' }}
     runs-on: ubuntu-latest
     env:
-      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_PROJECT_ID: gen-lang-client-0963224775
     steps:
       - uses: actions/checkout@v4
 
@@ -28,14 +28,10 @@ jobs:
       - name: Validate deployment configuration
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          FIREBASE_PROJECT_ID: gen-lang-client-0963224775
         run: |
           if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
             echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT."
-            exit 1
-          fi
-          if [ -z "$FIREBASE_PROJECT_ID" ]; then
-            echo "::error::Missing repository variable FIREBASE_PROJECT_ID. Set it to the verified Firebase project ID in Settings > Secrets and variables > Actions > Variables."
             exit 1
           fi
           node -e 'const x=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); const expected=process.env.FIREBASE_PROJECT_ID; if (!x.project_id || x.project_id !== expected || !x.private_key || !x.client_email) { console.error("Service-account project_id must match FIREBASE_PROJECT_ID."); process.exit(1); }'
