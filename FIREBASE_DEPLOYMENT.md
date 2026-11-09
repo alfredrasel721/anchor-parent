@@ -12,17 +12,16 @@ No Firebase ChatGPT plugin, Windows app, Android Studio, or local command line i
   `ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e`
 - Cloud Functions runtime: Node.js 22
 - Cloud Functions and Android callable-client region: `us-central1`
-- Firebase project ID: **not hardcoded on purpose**. The earlier value `gen-lang-client-0963224775` came from a previous Child-repository emulator configuration and has not been verified as the real production Firebase project.
+- Firebase project ID: `gen-lang-client-0963224775` (provided by the owner in this conversation and now configured as the default target in both repositories).
 
 **Do not deploy until the owner confirms the Firebase project and the Firestore database.** The Firestore database location is permanent. If the database does not already exist, confirm its desired location before creating it; the Functions currently use `us-central1`, and the app/backend region can be aligned to the chosen database location before production deployment.
 
 ## 1. Confirm the correct Firebase project
 
 1. Open [Firebase Console](https://console.firebase.google.com/) in your browser and sign in with the Google account that owns the project.
-2. Select the existing project that you intend to use for Anchor.
-3. Open **Project settings** (gear icon) > **General**.
-4. Copy the **Project ID** exactly. Do not use the display name.
-5. Keep that Project ID for the GitHub setup in section 6.
+2. Select the project whose ID is `gen-lang-client-0963224775`.
+3. Open **Project settings** (gear icon) > **General** and confirm the Project ID matches exactly. Do not use the display name.
+4. Both repositories are now pinned to this confirmed project; you do not need to create a GitHub `FIREBASE_PROJECT_ID` variable.
 
 If you do not already have a project, create one in Firebase Console. Do not create a second project if your existing Anchor data is already in another project.
 
@@ -71,15 +70,11 @@ Official Functions guide: https://firebase.google.com/docs/functions/get-started
 
 ## 6. Configure GitHub Actions from the browser
 
-Do this only after section 1 confirms the real Firebase Project ID.
+The workflows are already pinned to the owner-provided Project ID `gen-lang-client-0963224775`.
 
 ### Anchor Parent repository
 
 Open: https://github.com/alfredrasel721/anchor-parent/settings/secrets/actions
-
-Under **Variables**, add:
-
-- `FIREBASE_PROJECT_ID` = the exact Project ID copied from Firebase Console.
 
 Under **Secrets**, add:
 
@@ -92,10 +87,6 @@ Under **Secrets**, add:
 ### Anchor Child repository
 
 Open: https://github.com/alfredrasel721/Anchor-Child/settings/secrets/actions
-
-Under **Variables**, add:
-
-- `FIREBASE_PROJECT_ID` = the same exact Firebase Project ID.
 
 Under **Secrets**, add:
 
@@ -154,7 +145,7 @@ After both pull requests are merged to `main`, the project variable and service-
 4. Enter exactly `DEPLOY` in the confirmation field.
 5. Run it and wait for the deployment job to succeed.
 
-The workflow checks that the service-account project's `project_id` matches the `FIREBASE_PROJECT_ID` variable. It deploys only the Firestore rules and Cloud Functions. It does not create projects/databases, enable billing, or configure Google sign-in.
+The workflow checks that the service-account project's `project_id` matches the pinned project ID `gen-lang-client-0963224775`. It deploys only the Firestore rules and Cloud Functions. It does not create projects/databases, enable billing, or configure Google sign-in.
 
 ## 9. Build signed release files
 
@@ -187,4 +178,4 @@ Install Parent and Child on separate Android devices and verify:
 - Debug APKs are uploaded as workflow artifacts.
 - A guarded Firebase deployment workflow is prepared in the Parent repository.
 - Browser-run keystore fingerprint and signed-release workflows are prepared in both repositories.
-- The default Firebase project alias was removed so an unverified project cannot be selected accidentally.
+- Both repositories now use `gen-lang-client-0963224775` as their default Firebase project, based on the Project ID supplied by the owner.
