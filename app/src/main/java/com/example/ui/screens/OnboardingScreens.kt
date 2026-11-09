@@ -710,7 +710,7 @@ fun P03AddChildPairCodeScreen(
                             .testTag("pair_mode_qr_tab")
                     ) {
                         Text(
-                            text = "QR Handshake Matrix",
+                            text = "QR Preview",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (showQrMatrix) Color.White else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
