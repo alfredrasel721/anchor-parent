@@ -619,6 +619,36 @@ class AnchorParentViewModel(
         }
     }
 
+    fun unpairPairedChildDevice(deviceUid: String) {
+        val state = _uiState.value
+        if (!state.isCloudConnected) {
+            postBannerMessage("Connect to Anchor Cloud before unpairing a Child device.")
+            return
+        }
+        val pairedDevice = state.pairedDevices.firstOrNull { it.deviceId == deviceUid }
+        if (pairedDevice == null) {
+            postBannerMessage("That paired device is no longer in this family.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.unpairChildDevice(
+                    familyId = state.familyHousehold.familyId,
+                    deviceUid = deviceUid
+                )
+                recordAuditLog(
+                    eventCode = "#PAIR-310",
+                    actionTitle = "Unpaired Child Device",
+                    details = "Unpaired device for ${pairedDevice.childName.ifBlank { "Child" }} through the trusted server",
+                    syncState = "ENFORCED"
+                )
+                postBannerMessage("Unpaired ${pairedDevice.childName.ifBlank { "Child" }}'s device. It must use a new Parent-issued code to reconnect.")
+            } catch (e: Exception) {
+                postBannerMessage("Could not unpair this device: ${e.localizedMessage ?: "Please retry."}")
+            }
+        }
+    }
+
     fun copyPairingCodeToClipboard(context: Context) {
         val pairing = _uiState.value.pairingCode
         if (pairing.status != "ACTIVE" || pairing.code.isBlank()) {
