@@ -143,7 +143,7 @@ function decodeJwtPart(part) {
 }
 
 function pemToDer(pem) {
-  const body = pem.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\\s/g, "");
+  const body = pem.replace(/-----BEGIN CERTIFICATE-----|-----END CERTIFICATE-----|\s/g, "");
   const binary = atob(body);
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
@@ -215,7 +215,7 @@ async function getFirebaseSigningCerts() {
     if (!response.ok) throw new AppError("unavailable", "Firebase identity verification is temporarily unavailable.", 503);
     const certs = await response.json();
     const cacheControl = response.headers.get("cache-control") ?? "";
-    const maxAge = Number(cacheControl.match(/max-age=(\\d+)/i)?.[1] ?? 3600);
+    const maxAge = Number(cacheControl.match(/max-age=(\d+)/i)?.[1] ?? 3600);
     return { value: certs, ttl: maxAge };
   });
 }
