@@ -39,18 +39,18 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  cloud-functions:
-    name: Cloud Functions syntax and dependency check
+  cloudflare-worker:
+    name: Cloudflare Worker syntax and unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install Cloud Functions dependencies
-        run: npm install --prefix functions --no-audit --no-fund
-      - name: Validate Cloud Functions JavaScript syntax
-        run: node --check functions/index.js
+      - name: Validate Worker JavaScript syntax
+        run: node --check cloudflare-worker/src/index.mjs
+      - name: Run Worker unit tests
+        run: node --test cloudflare-worker/test/worker.test.mjs
 
   firestore-rules:
     name: Firestore security rules tests
@@ -139,7 +139,7 @@ jobs:
             console.log("Database type: " + (database.type || "not reported"));
             console.log("Firestore freeTier: " + String(database.freeTier));
             if (database.freeTier !== true) {
-              console.log("::warning::This database is not confirmed as free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");
+              console.error("This database is not confirmed as free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");\n              process.exitCode = 1;
             } else {
               console.log("Firestore database metadata confirms free-tier eligibility.");
             }
