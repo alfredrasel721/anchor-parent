@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +48,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +72,7 @@ import com.example.model.AnchorScreen
 import com.example.ui.components.BilateralTransparencyCard
 import com.example.ui.components.ChildSelectorBar
 import com.example.ui.components.StatusBadge
+import com.example.ui.theme.AnchorError
 import com.example.ui.theme.AnchorPrimary
 import com.example.ui.theme.AnchorPrimaryContainer
 import com.example.ui.theme.AnchorSecondary
@@ -605,12 +608,40 @@ fun P03AddChildPairCodeScreen(
     state: AnchorUiState,
     onSelectChild: (String) -> Unit,
     onGenerateNewCode: () -> Unit,
-    onRevokeCode: () -> Unit = {},
+    onRevokeCode: () -> Unit = {
+    deviceToUnpair?.let { (deviceUid, childName) ->
+        AlertDialog(
+            onDismissRequest = { deviceToUnpair = null },
+            title = { Text("Unpair Child Device?") },
+            text = {
+                Text("This disconnects $childName from this household. The device will need a new one-time code from Anchor Parent to reconnect.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deviceToUnpair = null
+                        onUnpairDevice(deviceUid)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AnchorError)
+                ) {
+                    Text("Unpair Device")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToUnpair = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+},
+    onUnpairDevice: (String) -> Unit = {},
     onCopyCode: () -> Unit,
     onShareInstructions: () -> Unit,
     onFinishToDashboard: () -> Unit
 ) {
     var showQrMatrix by remember { mutableStateOf(false) }
+    var deviceToUnpair by remember { mutableStateOf<Pair<String, String>?>(null) }
     val selectedChild = state.selectedChild
     val isCodeRevoked = state.pairingCode.revoked || state.pairingCode.status == "REVOKED"
     val isCodeConsumed = state.pairingCode.status == "CONSUMED"
@@ -874,7 +905,16 @@ fun P03AddChildPairCodeScreen(
                                     Text("${dev.childName} • ${dev.deviceName}", style = MaterialTheme.typography.titleSmall)
                                     Text("UID: ${dev.childUid} • Code: ${dev.redeemedCode}", style = MaterialTheme.typography.bodySmall)
                                 }
-                                StatusBadge(dev.status)
+                                Column(horizontalAlignment = Alignment.End) {
+                                    StatusBadge(dev.status)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        onClick = { deviceToUnpair = dev.deviceId to dev.childName },
+                                        modifier = Modifier.testTag("unpair_device_${dev.deviceId}")
+                                    ) {
+                                        Text("Unpair", color = AnchorError)
+                                    }
+                                }
                             }
                         }
                     }
