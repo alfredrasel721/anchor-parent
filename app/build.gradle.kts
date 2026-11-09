@@ -166,15 +166,16 @@ val validateReleaseFirebaseAndSigningInputs by tasks.registering {
     }
 
     val googleServicesJson = googleServicesFile.readText()
-    val requiredPatterns = listOf(
-      Regex("\\\"project_id\\\"\\\\s*:\\s*\\\"gen-lang-client-0963224775\\\""),
-      Regex("\\\"package_name\\\"\\\\s*:\\s*\\\"com.anchor.parent\\\""),
-      Regex("\\\"mobilesdk_app_id\\\"\\\\s*:\\s*\\\"1:")
-    )
-    if (requiredPatterns.any { !it.containsMatchIn(googleServicesJson) }) {
+    val matchesProject = googleServicesJson.contains("\\"project_id\\"") &&
+      googleServicesJson.contains("\\"gen-lang-client-0963224775\\"")
+    val matchesAndroidPackage = googleServicesJson.contains("\\"package_name\\"") &&
+      googleServicesJson.contains("\\"com.anchor.parent\\"")
+    val hasFirebaseAppId = googleServicesJson.contains("\\"mobilesdk_app_id\\"") &&
+      googleServicesJson.contains("\\"1:")
+    if (!matchesProject || !matchesAndroidPackage || !hasFirebaseAppId) {
       throw GradleException("Release build blocked: google-services.json must match Firebase project gen-lang-client-0963224775 and Android package com.anchor.parent.")
     }
-    if (!Regex("\\\"client_type\\\"\\\\s*:\\s*3").containsMatchIn(googleServicesJson)) {
+    if (!Regex("\\"client_type\\"\\\\s*:\\s*3").containsMatchIn(googleServicesJson)) {
       throw GradleException("Release build blocked: configure the Web OAuth client for Google sign-in and re-download google-services.json.")
     }
 
