@@ -657,7 +657,7 @@ async function redeemPairingCode(db, uid, body) {
       deviceName, deviceModel, osVersion, syncStatus: "ENFORCED",
       lastSyncLabel: "Paired & verified", updatedAt: new Date(nowMs)
     });
-    tx.delete(pairingRateLimits/${uid}`);
+    tx.delete(`pairingRateLimits/${uid}`);
     return {
       verified: true, familyId, ownerUid: codeData.ownerUid,
       childId: codeData.childId, childName: codeData.childName || "Child",
