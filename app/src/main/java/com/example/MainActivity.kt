@@ -234,6 +234,7 @@ fun AnchorParentRoot(viewModel: AnchorParentViewModel) {
                         onSelectChild = { viewModel.selectChild(it) },
                         onGenerateNewCode = { viewModel.generateNewPairingCode() },
                         onRevokeCode = { viewModel.revokeCurrentPairingCode() },
+                        onUnpairDevice = { viewModel.unpairPairedChildDevice(it) },
                         onCopyCode = { viewModel.copyPairingCodeToClipboard(context) },
                         onShareInstructions = { viewModel.sharePairingInstructions(context) },
                         onFinishToDashboard = { viewModel.enterGuardianWorkspace(AnchorScreen.P04_FAMILY_DASHBOARD) }
