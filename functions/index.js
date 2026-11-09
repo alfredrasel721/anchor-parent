@@ -147,6 +147,8 @@ exports.createPairingCode = onCall(async (request) => {
       tx.set(lookupRef, {
         familyId: familyId,
         codeId: codeId,
+        childId: childId,
+        ownerUid: parentUid,
         status: "ACTIVE",
         expiresAtEpochMs: expiresAtEpochMs,
         createdAtEpochMs: nowMs,
