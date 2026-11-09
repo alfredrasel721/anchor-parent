@@ -186,32 +186,31 @@ class AnchorRepository(
         }
         val digits = AndroidPlatformHelper.normalizePairingCode(enteredCode)
             ?: throw IllegalArgumentException("Pairing code must contain six digits.")
-        val response = functions.getHttpsCallable("redeemPairingCode")
-            .call(
-                mapOf(
-                    "code" to digits,
-                    "deviceName" to deviceName,
-                    "deviceModel" to deviceModel,
-                    "osVersion" to osVersion
-                )
-            ).await()
-        val data = response.data as? Map<*, *>
-            ?: throw IllegalStateException("Pairing service returned an invalid response.")
+        val data = AnchorWorkerApi.post(
+            auth,
+            "pairing/redeem",
+            mapOf(
+                "code" to digits,
+                "deviceName" to deviceName,
+                "deviceModel" to deviceModel,
+                "osVersion" to osVersion
+            )
+        )
         return PairedDevice(
-            id = data["deviceId"] as? String ?: childUid,
+            id = data.optString("deviceId", childUid),
             deviceId = data["deviceId"] as? String ?: childUid,
             childUid = data["deviceId"] as? String ?: childUid,
-            familyId = data["familyId"] as? String ?: familyId,
-            ownerUid = data["ownerUid"] as? String ?: "",
-            childId = data["childId"] as? String ?: "",
-            childName = data["childName"] as? String ?: "",
-            codeId = data["codeId"] as? String ?: codeId,
+            familyId = data.optString("familyId", familyId),
+            ownerUid = data.optString("ownerUid"),
+            childId = data.optString("childId"),
+            childName = data.optString("childName"),
+            codeId = data.optString("codeId", codeId),
             redeemedCode = "",
             deviceName = deviceName,
             deviceModel = deviceModel,
             osVersion = osVersion,
             status = "PAIRED",
-            pairedAtEpochMs = (data["pairedAtEpochMs"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+            pairedAtEpochMs = data.optLong("pairedAtEpochMs", System.currentTimeMillis()),
             lastHeartbeatEpochMs = System.currentTimeMillis()
         )
     }
