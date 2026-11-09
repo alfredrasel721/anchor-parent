@@ -198,8 +198,8 @@ class AnchorRepository(
         )
         return PairedDevice(
             id = data.optString("deviceId", childUid),
-            deviceId = data["deviceId"] as? String ?: childUid,
-            childUid = data["deviceId"] as? String ?: childUid,
+            deviceId = data.optString("deviceId", childUid),
+            childUid = data.optString("deviceId", childUid),
             familyId = data.optString("familyId", familyId),
             ownerUid = data.optString("ownerUid"),
             childId = data.optString("childId"),
