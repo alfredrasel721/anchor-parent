@@ -342,4 +342,146 @@ class FirestoreRest {
   }
 
   async get(path, transaction) {
-    const query = transaction ? `?transaction=${encodeURIComponent(transaction)
+    const query = transaction ? `?transaction=${encodeURIComponent(transaction)` : "";
+    try {
+      const document = await this.request("GET", `/${encodePath(path)}${query}`);
+      return { id: path.split("/").at(-1), data: decodeFirestoreFields(document.fields), document };
+    } catch (error) {
+      if (error instanceof AppError && error.status === 404) return null;
+      throw error;
+    }
+  }
+
+  async query(collectionPath, field, value, transaction) {
+    const segments = collectionPath.split("/");
+    const collectionId = segments.pop();
+    const parentPath = segments.join("/");
+    const parent = parentPath ? `/${encodePath(parentPath)}` : "";
+    const result = await this.request("POST", `${parent}:runQuery`, {
+      structuredQuery: {
+        from: [{ collectionId }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: field },
+            op: "EQUAL",
+            value: encodeFirestoreValue(value)
+          }
+        },
+        limit: 50
+      },
+      transaction
+    });
+    return (Array.isArray(result) ? result : []).filter((row) => row.document).map((row) => ({
+      id: row.document.name.split("/").at(-1),
+      data: decodeFirestoreFields(row.document.fields),
+      document: row.document
+    }));
+  }
+}
+
+function makeSetWrite(db, path, data, options = {}) {
+  const write = {
+    update: { name: db.documentName(path), fields: encodeFirestoreFields(data) }
+  };
+  if (options.create) write.currentDocument = { exists: false };
+  if (options.merge) write.updateMask = { fieldPaths: Object.keys(data) };
+  return write;
+}
+
+function makeUpdateWrite(db, path, data) {
+  return {
+    update: { name: db.documentName(path), fields: encodeFirestoreFields(data) },
+    updateMask: { fieldPaths: Object.keys(data) }
+  };
+}
+
+async function runTransaction(db, handler, maxAttempts = 3) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const transaction = await db.beginTransaction();
+    const writes = [];
+    const tx = {
+      get: (path) => db.get(path, transaction),
+      query: (path, field, value) => db.query(path, field, value, transaction),
+      set: (path, data, options = {}) => writes.push(makeSetWrite(db, path, data, options)),
+      update: (path, data) => writes.push(makeUpdateWrite(db, path, data)),
+      delete: (path) => writes.push({ delete: db.documentName(path) })
+    };
+    try {
+      const result = await handler(tx);
+      if (writes.length) await db.commit(transaction, writes);
+      else await db.rollback(transaction).catch(() => {});
+      return result;
+    } catch (error) {
+      await db.rollback(transaction).catch(() => {});
+      if (error instanceof AppError && error.firestoreStatus === "ABORTED" && attempt < maxAttempts - 1) continue;
+      throw error;
+    }
+  }
+  throw new AppError("unavailable", "The database is busy. Please try again.", 503);
+}
+
+async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function randomHex(byteLength = 16) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function safeDeviceValue(value, fallback, maxLength) {
+  const normalized = String(value ?? fallback).replace(/[\u0000-\u001f\u007f]/g, " ").trim();
+  return (normalized || fallback).slice(0, maxLength);
+}
+
+function requireUid(user) {
+  if (!user?.uid) throw new AppError("unauthenticated", "Sign in before using Anchor.", 401);
+  return user.uid;
+}
+
+async function createPairingCode(db, uid, body) {
+  const familyId = safePathSegment(body.familyId, "familyId");
+  const childId = safePathSegment(body.childId, "childId");
+  const childName = safeDeviceValue(body.childName, "Child", 100);
+  if (familyId !== `fam_${uid}`) throw new AppError("permission-denied", "Only the verified family owner can create pairing codes.", 403);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 900000 + 100000);
+    const codeHash = await sha256Hex(code);
+    const codeId = `pair_${childId}_${crypto.randomUUID()}`;
+    const nowMs = Date.now();
+    const expiresAtEpochMs = nowMs + PAIRING_TTL_MS;
+    const outcome = await runTransaction(db, async (tx) => {
+      const [familySnap, childSnap, lookupSnap] = await Promise.all([
+        tx.get(`families/${familyId}`),
+        tx.get(`families/${familyId}/children/${childId}`),
+        tx.get(`pairingCodeLookups/${codeHash}`)
+      ]);
+      if (!familySnap || familySnap.data.ownerUid !== uid) {
+        throw new AppError("permission-denied", "Only the verified family owner can create pairing codes.", 403);
+      }
+      if (!childSnap || childSnap.data.ownerUid !== uid || childSnap.data.familyId !== familyId || childSnap.data.childId !== childId) {
+        throw new AppError("not-found", "The selected child profile does not belong to this family.", 404);
+      }
+      if (lookupSnap) return { collision: true };
+
+      const activeCodes = await tx.query(`families/${familyId}/pairingCodes`, "childId", childId);
+      const stale = [];
+      for (const activeCodeSnap of activeCodes) {
+        const activeCode = activeCodeSnap.data;
+        if (activeCode.status !== "ACTIVE") continue;
+        const indexPath = `pairingCodeLookupIndexes/${activeCodeSnap.id}`;
+        const indexSnap = await tx.get(indexPath);
+        const lookupIds = new Set();
+        if (indexSnap?.data.lookupId) lookupIds.add(indexSnap.data.lookupId);
+        if (activeCode.codeHash) lookupIds.add(activeCode.codeHash);
+        stale.push({ codeId: activeCodeSnap.id, lookupIds: [...lookupIds], hasIndex: Boolean(indexSnap) });
+      }
+
+      for (const old of stale) {
+        tx.update(`families/${familyId}/pairingCodes/${old.codeId}`, {
+          status: "REVOKED", revoked: true, revokedAtEpochMs: nowMs
+        });
+        for (const oldLookupId of old.lookupIds) tx.del
