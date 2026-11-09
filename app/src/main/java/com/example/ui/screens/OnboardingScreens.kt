@@ -619,7 +619,7 @@ fun P03AddChildPairCodeScreen(
     val selectedChild = state.selectedChild
     val isCodeRevoked = state.pairingCode.revoked || state.pairingCode.status == "REVOKED"
     val isCodeConsumed = state.pairingCode.status == "CONSUMED"
-    val isCodeActive = state.pairingCode.status == "ACTIVE" && state.pairingCode.code.isNotBlank()
+    val isCodeActive = state.pairingCode.status == "ACTIVE" && state.pairingCode.code.isNotBlank() && state.pairingCountdownSeconds > 0
 
     Column(
         modifier = Modifier
