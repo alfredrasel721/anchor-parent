@@ -21,7 +21,7 @@ import com.example.model.UserProfile
 import com.example.util.AndroidPlatformHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -31,7 +31,6 @@ class AnchorRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
-    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance("asia-south1")
     companion object {
         const val PAIRING_CODE_TTL_MS = 10 * 60 * 1000L // 10 minutes
 
@@ -112,26 +111,25 @@ class AnchorRepository(
         childName: String
     ): PairingCode {
         require(auth.currentUser?.uid == ownerUid) { "Sign in as the family owner before generating a pairing code." }
-        val response = functions.getHttpsCallable("createPairingCode")
-            .call(
-                mapOf(
-                    "familyId" to familyId,
-                    "childId" to childId,
-                    "childName" to childName
-                )
-            ).await()
-        val data = response.data as? Map<*, *>
-            ?: throw IllegalStateException("Pairing service returned an invalid response.")
+        val data = AnchorWorkerApi.post(
+            auth,
+            "pairing/create",
+            mapOf(
+                "familyId" to familyId,
+                "childId" to childId,
+                "childName" to childName
+            )
+        )
         return PairingCode(
-            id = data["codeId"] as? String ?: "",
-            codeId = data["codeId"] as? String ?: "",
-            familyId = data["familyId"] as? String ?: familyId,
-            ownerUid = data["ownerUid"] as? String ?: ownerUid,
-            childId = data["childId"] as? String ?: childId,
-            childName = data["childName"] as? String ?: childName,
-            code = data["code"] as? String ?: "",
-            expiresAtEpochMs = (data["expiresAtEpochMs"] as? Number)?.toLong() ?: 0L,
-            status = data["status"] as? String ?: "ACTIVE",
+            id = data.optString("codeId"),
+            codeId = data.optString("codeId"),
+            familyId = data.optString("familyId", familyId),
+            ownerUid = data.optString("ownerUid", ownerUid),
+            childId = data.optString("childId", childId),
+            childName = data.optString("childName", childName),
+            code = data.optString("code"),
+            expiresAtEpochMs = data.optLong("expiresAtEpochMs"),
+            status = data.optString("status", "ACTIVE"),
             revoked = false,
             attemptCount = 0,
             maxAttempts = 5
@@ -140,17 +138,28 @@ class AnchorRepository(
 
     suspend fun revokePairingCode(familyId: String, codeId: String) {
         require(auth.currentUser != null) { "Sign in before revoking a pairing code." }
-        functions.getHttpsCallable("revokePairingCode")
-            .call(mapOf("familyId" to familyId, "codeId" to codeId))
-            .await()
+        AnchorWorkerApi.post(auth, "pairing/revoke", mapOf("familyId" to familyId, "codeId" to codeId))
     }
 
     suspend fun unpairChildDevice(familyId: String, deviceUid: String) {
         require(auth.currentUser != null) { "Sign in before unpairing a Child device." }
         require(deviceUid.isNotBlank()) { "A Child device ID is required." }
-        functions.getHttpsCallable("revokePairingCode")
-            .call(mapOf("familyId" to familyId, "deviceUid" to deviceUid))
-            .await()
+        AnchorWorkerApi.post(auth, "pairing/revoke", mapOf("familyId" to familyId, "deviceUid" to deviceUid))
+    }
+
+    suspend fun subscribeToSosNotifications(familyId: String) {
+        require(auth.currentUser != null) { "Sign in before registering SOS notifications." }
+        val response = AnchorWorkerApi.post(auth, "notifications/topic", mapOf("familyId" to familyId))
+        val topic = response.optString("topic")
+        require(topic.isNotBlank()) { "SOS notification registration returned an empty topic." }
+        FirebaseMessaging.getInstance().subscribeToTopic(topic).await()
+    }
+
+    suspend fun unsubscribeFromSosNotifications(familyId: String) {
+        if (auth.currentUser == null || familyId.isBlank()) return
+        val response = AnchorWorkerApi.post(auth, "notifications/topic", mapOf("familyId" to familyId))
+        val topic = response.optString("topic")
+        if (topic.isNotBlank()) FirebaseMessaging.getInstance().unsubscribeFromTopic(topic).await()
     }
 
     /**
