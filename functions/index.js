@@ -314,6 +314,7 @@ exports.redeemPairingCode = onCall(async (request) => {
         childData.familyId !== familyId ||
         childData.childId !== codeData.childId) {
       tx.delete(lookupRef);
+      if (lookupIndexSnap.exists) tx.delete(lookupIndexRef);
       return {
         errorCode: "permission-denied",
         errorMessage: "The pairing code does not match a valid family profile.",
