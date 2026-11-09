@@ -484,4 +484,39 @@ async function createPairingCode(db, uid, body) {
         tx.update(`families/${familyId}/pairingCodes/${old.codeId}`, {
           status: "REVOKED", revoked: true, revokedAtEpochMs: nowMs
         });
-        for (const oldLookupId of old.lookupIds) tx.del
+        for (const oldLookupId of old.lookupIds) tx.delete(`pairingCodeLookups/${oldLookupId}`);
+        if (old.hasIndex) tx.delete(`pairingCodeLookupIndexes/${old.codeId}`);
+      }
+      tx.set(`families/${familyId}/pairingCodes/${codeId}`, {
+        codeId, familyId, ownerUid: uid, childId, childName, code: "",
+        expiresAtEpochMs, status: "ACTIVE", revoked: false,
+        attemptCount: 0, maxAttempts: MAX_REDEEM_ATTEMPTS,
+        consumedByChildUid: "", consumedAtEpochMs: 0,
+        createdAtEpochMs: nowMs, createdAt: new Date(nowMs)
+      }, { create: true });
+      tx.set(`pairingCodeLookups/${codeHash}`, {
+        familyId, codeId, childId, ownerUid: uid, status: "ACTIVE",
+        expiresAtEpochMs, createdAtEpochMs: nowMs
+      }, { create: true });
+      tx.set(`pairingCodeLookupIndexes/${codeId}`, {
+        familyId, codeId, lookupId: codeHash, status: "ACTIVE", createdAtEpochMs: nowMs
+      }, { create: true });
+      tx.update(`families/${familyId}/children/${childId}`, {
+        activePairingCodeId: codeId, updatedAt: new Date(nowMs)
+      });
+      return { collision: false };
+    });
+    if (!outcome.collision) {
+      return {
+        verified: true, codeId, familyId, ownerUid: uid, childId, childName,
+        code: `${code.slice(0, 3)}-${code.slice(3)}`,
+        expiresAtEpochMs, status: "ACTIVE"
+      };
+    }
+  }
+  throw new AppError("resource-exhausted", "Could not allocate a unique pairing code. Please retry.", 429);
+}
+
+async function redeemPairingCode(db, uid, body) {
+  const code = normalizePairingCode(body.code);
+  if (!code) throw new AppError
