@@ -342,35 +342,4 @@ class FirestoreRest {
   }
 
   async get(path, transaction) {
-    const query = transaction ? `?transaction=${encodeURIComponent(transaction)}` : "";
-    try {
-      const document = await this.request("GET", `/${encodePath(path)}${query}`);
-      return { id: path.split("/").at(-1), data: decodeFirestoreFields(document.fields), document };
-    } catch (error) {
-      if (error instanceof AppError && error.status === 404) return null;
-      throw error;
-    }
-  }
-
-  async query(collectionPath, field, value, transaction) {
-    const segments = collectionPath.split("/");
-    const collectionId = segments.pop();
-    const parentPath = segments.join("/");
-    const parent = parentPath ? `${encodePath(parentPath)}` : "";
-    const result = await this.request("POST", `${parent}:runQuery`, {
-      structuredQuery: {
-        from: [{ collectionId }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: field },
-            op: "EQUAL",
-            value: encodeFirestoreValue(value)
-          }
-        },
-        limit: 50
-      },
-      transaction
-    });
-    return (Array.isArray(result) ? result : []).nil
-  }
-}
+    const query = transaction ? `?transaction=${encodeURIComponent(transaction)
