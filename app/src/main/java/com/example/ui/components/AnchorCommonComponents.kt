@@ -262,7 +262,7 @@ fun StitchBottomNavBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = { onNavigate(screen) },
-                modifier = Modifier.testTag("bottom_nav_${label.lowercase}"),
+                modifier = Modifier.testTag("bottom_nav_${label.lowercase()}"),
                 icon = {
                     if (label == "Family" && pendingRequestsCount > 0) {
                         BadgedBox(

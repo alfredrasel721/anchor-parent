@@ -615,7 +615,7 @@ fun P03AddChildPairCodeScreen(
                         shape = RoundedCornerShape(999.dp)
                     ) {
                         Text(
-                            text = "PAIRING FOR ${selectedChild.name.uppercase}",
+                            text = "PAIRING FOR ${selectedChild.name.uppercase()}",
                             style = MaterialTheme.typography.labelSmall,
                             color = AnchorPrimary,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
