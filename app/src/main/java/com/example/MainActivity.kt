@@ -391,7 +391,7 @@ fun AnchorParentRoot(viewModel: AnchorParentViewModel) {
         }
     }
 
-    if (showScreenDirectory) {
+    if (BuildConfig.DEBUG && showScreenDirectory) {
         ScreenDirectoryDialog(
             currentScreen = state.currentScreen,
             isPremiumActive = state.isPremiumActive,

@@ -354,7 +354,7 @@ fun P13GuardianRolesTrustedContactsScreen(
                                 Text(c.name, style = MaterialTheme.typography.titleSmall)
                                 Text("${c.relationRole} • ${c.emailOrPhone}", style = MaterialTheme.typography.bodySmall)
                                 Text(
-                                    "Receive Geofence Check-ins: ${if (c.receiveGeofenceAlerts) "Enabled" else "SOS Only"}",
+                                    "Receive Geofence Check-ins: ${if (c.receiveGeofenceAlerts)"Enabled"else"SOS Only"}",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = AnchorSecondary
                                 )
@@ -474,7 +474,7 @@ fun P14PrivacyExportDeletionScreen(
                 }
                 Text("• Location Trails (${state.geofences.size} zones): Auto-purged every 30 days", style = MaterialTheme.typography.bodySmall)
                 Text("• App Usage & Category Totals (${state.appRules.size} rules): Aggregated daily", style = MaterialTheme.typography.bodySmall)
-                Text("• Emergency SOS Drills (${state.alerts.count { it.category == "SOS" }} events): Encrypted audit log", style = MaterialTheme.typography.bodySmall)
+                Text("• Emergency SOS Drills (${state.alerts.count { it.category =="SOS"}} events): Encrypted audit log", style = MaterialTheme.typography.bodySmall)
                 Text("• Bilateral Audit Trail (${state.auditLogs.size} local Room entries): Tamper-evident", style = MaterialTheme.typography.bodySmall)
             }
         }
@@ -568,7 +568,7 @@ fun P14PrivacyExportDeletionScreen(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Confirm Permanent Household Deletion") },
             text = {
-                Text("This will immediately erase all household records from local Room cache and Firebase Firestore and return to P-01 Welcome. Proceed?")
+                Text("This will immediately erase all household records from local Room cache and Firebase Firestore and return to Welcome. Proceed?")
             },
             confirmButton = {
                 Button(

@@ -244,7 +244,7 @@ fun P04FamilyDashboardScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "View Full Analytics (P-06) →",
+                            text = "View Full Analytics →",
                             style = MaterialTheme.typography.labelLarge,
                             color = AnchorPrimary,
                             modifier = Modifier
@@ -324,7 +324,7 @@ fun P04FamilyDashboardScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Inbox (P-11) →",
+                            text = "Inbox →",
                             style = MaterialTheme.typography.labelLarge,
                             color = AnchorPrimary,
                             modifier = Modifier.clickable { onNavigate(AnchorScreen.P11_EXTRA_TIME_REQUESTS) }
@@ -419,22 +419,22 @@ fun P04FamilyDashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val quickLinks = listOf(
-                        AnchorScreen.P05_CHILD_PROFILE_DEVICE to "P-05 Device Health",
-                        AnchorScreen.P06_SCREEN_TIME_ANALYTICS to "P-06 Analytics",
-                        AnchorScreen.P07_APP_USAGE_LIMITS to "P-07 App Limits",
-                        AnchorScreen.P08_SCHEDULES_DOWNTIME to "P-08 Schedules",
-                        AnchorScreen.P09_LOCATION_GEOFENCES to "P-09 Geofences",
-                        AnchorScreen.P10_ALERTS_SOS_ACTIVITY to "P-10 SOS & Alerts",
-                        AnchorScreen.P11_EXTRA_TIME_REQUESTS to "P-11 Requests",
-                        AnchorScreen.P12_FAMILY_CHAT_TASKS to "P-12 Chat & Tasks",
-                        AnchorScreen.P13_GUARDIAN_ROLES_CONTACTS to "P-13 Guardians",
-                        AnchorScreen.P14_PRIVACY_EXPORT_DELETION to "P-14 Data Rights",
-                        AnchorScreen.P15_PREMIUM_FEATURES to "P-15 Premium Tier",
-                        AnchorScreen.P16_WEB_FILTER_RULES to "P-16 Web Filter ★",
-                        AnchorScreen.P17_SOCIAL_CONTENT_FILTERS to "P-17 Social Shield ★",
-                        AnchorScreen.P18_NOTIFICATION_FILTER to "P-18 Notif Filter ★",
-                        AnchorScreen.P19_LIVE_SESSION_VIEWER to "P-19 Live Check ★",
-                        AnchorScreen.P20_ACCOUNT_SETTINGS_DIAGNOSTICS to "P-20 Diagnostics"
+                        AnchorScreen.P05_CHILD_PROFILE_DEVICE to "Device Health",
+                        AnchorScreen.P06_SCREEN_TIME_ANALYTICS to "Analytics",
+                        AnchorScreen.P07_APP_USAGE_LIMITS to "App Limits",
+                        AnchorScreen.P08_SCHEDULES_DOWNTIME to "Schedules",
+                        AnchorScreen.P09_LOCATION_GEOFENCES to "Geofences",
+                        AnchorScreen.P10_ALERTS_SOS_ACTIVITY to "SOS & Alerts",
+                        AnchorScreen.P11_EXTRA_TIME_REQUESTS to "Requests",
+                        AnchorScreen.P12_FAMILY_CHAT_TASKS to "Chat & Tasks",
+                        AnchorScreen.P13_GUARDIAN_ROLES_CONTACTS to "Guardians",
+                        AnchorScreen.P14_PRIVACY_EXPORT_DELETION to "Data Rights",
+                        AnchorScreen.P15_PREMIUM_FEATURES to "Premium Tier",
+                        AnchorScreen.P16_WEB_FILTER_RULES to "Web Filter ★",
+                        AnchorScreen.P17_SOCIAL_CONTENT_FILTERS to "Social Shield ★",
+                        AnchorScreen.P18_NOTIFICATION_FILTER to "Notif Filter ★",
+                        AnchorScreen.P19_LIVE_SESSION_VIEWER to "Live Check ★",
+                        AnchorScreen.P20_ACCOUNT_SETTINGS_DIAGNOSTICS to "Diagnostics"
                     )
                     quickLinks.forEach { (screen, label) ->
                         FilterChip(
@@ -697,7 +697,7 @@ fun P05ChildProfileDeviceStatusScreen(
                         onClick = onPairReplacementDevice,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Pair Replacement (P-03)")
+                        Text("Pair Replacement")
                     }
                 }
             }
@@ -916,7 +916,7 @@ fun P06ScreenTimeAnalyticsScreen(
                 ) {
                     Text("Top Used Apps & Category Caps", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        text = "Edit Caps (P-07) →",
+                        text = "Edit Caps →",
                         style = MaterialTheme.typography.labelLarge,
                         color = AnchorPrimary,
                         modifier = Modifier.clickable { onNavigateToAppLimits() }

@@ -152,12 +152,12 @@ fun P15PremiumFeaturesScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
                 val sixGroups = listOf(
-                    Triple("1. Screen Mirroring & Live Screen Viewing", "Audited, consent-gated live screen check-in (P-19)", AnchorScreen.P19_LIVE_SESSION_VIEWER),
-                    Triple("2. Live Camera Access", "Emergency / safety consent-gated front camera check (P-19)", AnchorScreen.P19_LIVE_SESSION_VIEWER),
-                    Triple("3. Live Microphone Audio", "Audited ambient audio & two-way voice safety check (P-19)", AnchorScreen.P19_LIVE_SESSION_VIEWER),
-                    Triple("4. Notification Filtering", "Study & Bedtime distraction batching & streak interception (P-18)", AnchorScreen.P18_NOTIFICATION_FILTER),
-                    Triple("5. Website & Web-Content Filtering", "SafeSearch, category blocks & custom domain lists (P-16)", AnchorScreen.P16_WEB_FILTER_RULES),
-                    Triple("6. Social-Media Content Filtering", "Discord, Roblox, WhatsApp & YouTube safety shields (P-17)", AnchorScreen.P17_SOCIAL_CONTENT_FILTERS)
+                    Triple("1. Screen Mirroring & Live Screen Viewing", "Audited, consent-gated live screen check-in", AnchorScreen.P19_LIVE_SESSION_VIEWER),
+                    Triple("2. Live Camera Access", "Emergency / safety consent-gated front camera check", AnchorScreen.P19_LIVE_SESSION_VIEWER),
+                    Triple("3. Live Microphone Audio", "Audited ambient audio & two-way voice safety check", AnchorScreen.P19_LIVE_SESSION_VIEWER),
+                    Triple("4. Notification Filtering", "Study & Bedtime distraction batching & streak interception", AnchorScreen.P18_NOTIFICATION_FILTER),
+                    Triple("5. Website & Web-Content Filtering", "SafeSearch, category blocks & custom domain lists", AnchorScreen.P16_WEB_FILTER_RULES),
+                    Triple("6. Social-Media Content Filtering", "Discord, Roblox, WhatsApp & YouTube safety shields", AnchorScreen.P17_SOCIAL_CONTENT_FILTERS)
                 )
                 sixGroups.forEach { (title, subtitle, targetScreen) ->
                     Surface(
@@ -573,7 +573,7 @@ fun P17SocialAppContentFiltersScreen(
                             selected = config.socialShieldProfile == mode,
                             enabled = state.isPremiumActive,
                             onClick = { onSelectShieldProfile(mode) },
-                            label = { Text(mode.replace("_", " ")) },
+                            label = { Text(mode.replace("_", "")) },
                             modifier = Modifier.testTag("social_shield_$mode")
                         )
                     }

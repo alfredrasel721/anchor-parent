@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.example.model.AnchorScreen
+import com.example.BuildConfig
 import com.example.model.ChildProfile
 import com.example.ui.theme.AnchorPrimary
 import com.example.ui.theme.AnchorPrimaryContainer
@@ -140,27 +141,13 @@ fun StitchTopAppBar(
                     }
 
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = RoundedCornerShape(6.dp)
-                            ) {
-                                Text(
-                                    text = currentScreen.code,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = familyName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                        Text(
+                            text = familyName,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                         Text(
                             text = currentScreen.title,
                             style = MaterialTheme.typography.titleMedium,
@@ -169,52 +156,23 @@ fun StitchTopAppBar(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Surface(
-                        color = if (isPremiumActive) AnchorTertiaryFixed else MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(999.dp),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .clickable { onOpenPremium() }
-                            .testTag("top_bar_tier_badge")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    if (BuildConfig.DEBUG) {
+                        IconButton(
+                            onClick = onOpenDirectory,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                .testTag("open_screen_directory_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.WorkspacePremium,
-                                contentDescription = "Subscription Tier",
-                                tint = if (isPremiumActive) AnchorTertiary else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (isPremiumActive) "PREMIUM" else "FREE",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (isPremiumActive) AnchorTertiary else MaterialTheme.colorScheme.primary
+                                imageVector = Icons.Default.Apps,
+                                contentDescription = "All 20 Parent Screens Directory",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                    }
-
-                    IconButton(
-                        onClick = onOpenDirectory,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                            .testTag("open_screen_directory_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Apps,
-                            contentDescription = "All 20 Parent Screens Directory",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+    
                     }
                 }
             }
@@ -246,12 +204,6 @@ fun StitchTopAppBar(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    text = "Tap Grid for P-01..P-20",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { onOpenDirectory() }
-                )
             }
         }
     }
@@ -310,7 +262,7 @@ fun StitchBottomNavBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = { onNavigate(screen) },
-                modifier = Modifier.testTag("bottom_nav_${label.lowercase()}"),
+                modifier = Modifier.testTag("bottom_nav_${label.lowercase}"),
                 icon = {
                     if (label == "Family" && pendingRequestsCount > 0) {
                         BadgedBox(
@@ -430,7 +382,7 @@ fun StatusBadge(status: String) {
         "ENFORCED", "ACTIVE", "APPROVED", "COMPLETED", "VERIFIED" ->
             Triple(StatusEnforcedBg, StatusEnforced, status.uppercase())
         "PENDING", "SCHEDULE_ONLY", "READY_FOR_REVIEW", "WARNING" ->
-            Triple(StatusPendingBg, StatusPending, status.replace("_", " ").uppercase())
+            Triple(StatusPendingBg, StatusPending, status.replace("_", "").uppercase())
         "BLOCKED", "FAILED", "CRITICAL", "DECLINED" ->
             Triple(StatusFailedBg, StatusFailed, status.uppercase())
         "WHITELISTED", "INFO" ->
@@ -539,7 +491,7 @@ fun PremiumGateBanner(
                         onClick = onUpgradeClick,
                         modifier = Modifier.testTag("view_premium_plans_btn")
                     ) {
-                        Text("View P-15 Plans", color = AnchorTertiary)
+                        Text("View Plans", color = AnchorTertiary)
                     }
                 }
             }
@@ -615,7 +567,7 @@ fun ScreenDirectoryDialog(
                             style = MaterialTheme.typography.titleLarge
                         )
                         Text(
-                            text = "Google Stitch Reference Navigation (P-01 to P-20)",
+                            text = "Browse all Parent features",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -653,17 +605,6 @@ fun ScreenDirectoryDialog(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Surface(
-                                        color = AnchorPrimary,
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(
-                                            text = screen.code,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
-                                    }
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
                                         text = screen.title,

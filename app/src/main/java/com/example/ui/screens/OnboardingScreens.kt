@@ -545,7 +545,7 @@ fun P02FamilyOnboardingScreen(
                         .testTag("continue_to_pair_code_btn"),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Continue to Step 2: Pair Child Device (P-03)")
+                    Text("Continue to Step 2: Pair Child Device")
                 }
                 if (state.children.isEmpty()) {
                     Text(
@@ -615,7 +615,7 @@ fun P03AddChildPairCodeScreen(
                         shape = RoundedCornerShape(999.dp)
                     ) {
                         Text(
-                            text = "PAIRING FOR ${selectedChild.name.uppercase()}",
+                            text = "PAIRING FOR ${selectedChild.name.uppercase}",
                             style = MaterialTheme.typography.labelSmall,
                             color = AnchorPrimary,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
@@ -904,7 +904,7 @@ fun P03AddChildPairCodeScreen(
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open Family Dashboard (P-04)")
+                    Text("Open Family Dashboard")
                 }
             }
         }
