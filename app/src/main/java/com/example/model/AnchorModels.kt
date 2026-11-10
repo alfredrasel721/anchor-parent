@@ -79,9 +79,9 @@ data class ChildProfile(
     var locationLabel: String = "Location unavailable",
     var latitude: Double = 0.0,
     var longitude: Double = 0.0,
-    var knoxVerified: Boolean = true,
-    var accessibilityEnabled: Boolean = true,
-    var deviceAdminEnabled: Boolean = true,
+    var knoxVerified: Boolean = false,
+    var accessibilityEnabled: Boolean = false,
+    var deviceAdminEnabled: Boolean = false,
     var policyPausedUntil: String = "",
     @ServerTimestamp var updatedAt: Timestamp? = null
 )
@@ -118,7 +118,7 @@ data class PairedDevice(
     var deviceName: String = "",
     var deviceModel: String = "",
     var osVersion: String = "",
-    var status: String = "PAIRED", // PAIRED, REVOKED
+    var status: String = "PENDING", // PAIRED, REVOKED
     var pairedAtEpochMs: Long = 0L,
     var lastHeartbeatEpochMs: Long = 0L,
     @ServerTimestamp var updatedAt: Timestamp? = null
@@ -132,10 +132,10 @@ data class AppRule(
     var childId: String = "",
     var packageName: String = "",
     var appName: String = "",
-    var category: String = "Games & Entertainment",
-    var dailyLimitMinutes: Int = 45,
-    var usedMinutesToday: Int = 30,
-    var status: String = "ENFORCED", // ENFORCED, PENDING, SCHEDULE_ONLY, WHITELISTED, BLOCKED
+    var category: String = "Uncategorized",
+    var dailyLimitMinutes: Int = 0,
+    var usedMinutesToday: Int = 0,
+    var status: String = "PENDING", // ENFORCED, PENDING, SCHEDULE_ONLY, WHITELISTED, BLOCKED
     var blocked: Boolean = false,
     var whitelisted: Boolean = false,
     var scheduleOnly: Boolean = false,
@@ -150,11 +150,11 @@ data class ScheduleRoutine(
     var childId: String = "",
     var title: String = "",
     var windowDescription: String = "",
-    var daysSummary: String = "Sun, Mon, Tue, Wed, Thu",
-    var ruleSummary: String = "Phone calls, Emergency SOS & Alarm Clock only",
-    var iconType: String = "BEDTIME", // BEDTIME, SCHOOL, DINNER, CUSTOM
-    var enabled: Boolean = true,
-    var syncStatus: String = "ENFORCED",
+    var daysSummary: String = "",
+    var ruleSummary: String = "",
+    var iconType: String = "DEFAULT", // BEDTIME, SCHOOL, DINNER, CUSTOM
+    var enabled: Boolean = false,
+    var syncStatus: String = "PENDING",
     @ServerTimestamp var updatedAt: Timestamp? = null
 )
 
@@ -165,13 +165,13 @@ data class SafeGeofence(
     var ownerUid: String = "",
     var childId: String = "",
     var name: String = "",
-    var radiusMeters: Int = 250,
-    var triggerSummary: String = "Notify on Arrival & Departure",
-    var scheduleSummary: String = "Mon–Fri • 7:45 AM – 3:30 PM",
+    var radiusMeters: Int = 0,
+    var triggerSummary: String = "",
+    var scheduleSummary: String = "",
     var activeInside: Boolean = false,
-    var alertsEnabled: Boolean = true,
-    var latitude: Double = 37.7749,
-    var longitude: Double = -122.4194,
+    var alertsEnabled: Boolean = false,
+    var latitude: Double = 0.0,
+    var longitude: Double = 0.0,
     @ServerTimestamp var updatedAt: Timestamp? = null
 )
 
@@ -197,7 +197,7 @@ data class ChildRequest(
     var familyId: String = "",
     var ownerUid: String = "",
     var childId: String = "",
-    var childName: String = "Leo",
+    var childName: String = "",
     var requestType: String = "EXTRA_TIME", // EXTRA_TIME, NEW_APP
     var targetName: String = "",
     var targetCategory: String = "",
@@ -289,9 +289,9 @@ data class LiveSessionRequest(
     var ownerUid: String = "",
     var childId: String = "",
     var auditCode: String = "",
-    var mode: String = "Screen View",
+    var mode: String = "",
     var reason: String = "",
-    var status: String = "AWAITING_CHILD_CONSENT", // AWAITING_CHILD_CONSENT, CONSENT_GRANTED, DECLINED_BY_CHILD, ENDED
+    var status: String = "STANDBY", // AWAITING_CHILD_CONSENT, CONSENT_GRANTED, DECLINED_BY_CHILD, ENDED
     var consentGranted: Boolean = false,
     var requestedAtEpochMs: Long = 0L,
     @ServerTimestamp var updatedAt: Timestamp? = null
