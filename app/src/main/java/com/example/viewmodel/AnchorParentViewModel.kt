@@ -1811,22 +1811,23 @@ class AnchorParentViewModel(
     // P-15: Premium Features & Subscription Entitlement
     // ===============================================================
     fun setSubscriptionTier(tier: String, active: Boolean) {
-        val current = _uiState.value.familyHousehold
-        val updated = current.copy(
-            subscriptionTier = tier,
-            subscriptionActive = active
-        )
+        // Client-side billing is NEVER an entitlement authority.
+        // Google Play purchase tokens must be verified by a trusted backend before
+        // subscriptionTier/subscriptionActive are changed in Firestore.
+        val plan = when (tier) {
+            "PREMIUM_ANNUAL" -> "Annual"
+            "PREMIUM_MONTHLY" -> "Monthly"
+            else -> "Free"
+        }
         _uiState.update {
             it.copy(
-                familyHousehold = updated,
                 statusBannerMessage = if (active) {
-                    "Anchor Family Premium ($tier) Active — All 6 Premium Safeguard Groups Unlocked"
+                    "$plan Premium purchase is not available yet. A verified Google Play purchase is required; no features were unlocked."
                 } else {
-                    "Switched to Free Core Tier — The 6 Premium feature groups now show upgrade paywalls"
+                    "Manage or cancel a verified Premium subscription through Google Play. Your current entitlement was not changed."
                 }
             )
         }
-        persistFamilyWithSyncStatus(updated, "Updated Subscription Entitlement: $tier")
     }
 
     // ===============================================================
