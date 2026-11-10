@@ -8,7 +8,7 @@ const {
 } = require('@firebase/rules-unit-testing');
 
 const PROJECT_ID = 'demo-anchor-local';
-const DATABASE_ID = 'ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e';
+const DATABASE_ID = 'ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d';
 
 let testEnv;
 let testCounter = 0;
@@ -102,6 +102,36 @@ async function seedVerifiedFamily() {
 
   return { parentUid, childUid, familyId, childId, codeId, lookupHash };
 }
+
+test('Parent cannot mint Premium entitlement in Firestore without server verification', async () => {
+  const seeded = await seedVerifiedFamily();
+  const parentDb = testEnv.authenticatedContext(seeded.parentUid).firestore(DATABASE_ID);
+  const familyRef = parentDb.doc(`families/${seeded.familyId}`);
+
+  // Ordinary family metadata remains editable.
+  await assertSucceeds(familyRef.update({ familyName: 'Renamed Household' }));
+
+  // Even the legitimate owner cannot enable or switch a paid tier.
+  await assertFails(familyRef.update({ subscriptionActive: true }));
+  await assertFails(familyRef.update({ subscriptionTier: 'PREMIUM_ANNUAL' }));
+  await assertFails(familyRef.set({
+    familyId: seeded.familyId,
+    ownerUid: seeded.parentUid,
+    familyName: 'Forged Premium Household',
+    subscriptionTier: 'PREMIUM_MONTHLY',
+    subscriptionActive: true,
+  }));
+
+  // The created family must start with Free entitlement.
+  const forgedRef = parentDb.doc(`families/fam_${seeded.parentUid}_forged`);
+  await assertFails(forgedRef.set({
+    familyId: `fam_${seeded.parentUid}_forged`,
+    ownerUid: seeded.parentUid,
+    familyName: 'Forged Family',
+    subscriptionTier: 'PREMIUM_ANNUAL',
+    subscriptionActive: true,
+  }));
+});
 
 test('Parent can read pairing status but cannot create or modify pairing secrets from the app', async () => {
   const seeded = await seedVerifiedFamily();
