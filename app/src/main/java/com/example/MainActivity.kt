@@ -233,8 +233,6 @@ fun AnchorParentRoot(viewModel: AnchorParentViewModel) {
                     AnchorScreen.P01_WELCOME_SIGN_IN -> P01WelcomeSignInScreen(
                         state = state,
                         onGoogleSignIn = { viewModel.signInWithGoogle(context) },
-                        onEnterGuardianWorkspace = { viewModel.enterGuardianWorkspace(it) },
-                        onStartOnboarding = { viewModel.navigateTo(AnchorScreen.P02_FAMILY_ONBOARDING) }
                     )
                     AnchorScreen.P02_FAMILY_ONBOARDING -> P02FamilyOnboardingScreen(
                         state = state,

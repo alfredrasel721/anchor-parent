@@ -21,7 +21,6 @@ import com.example.data.local.CachedChildStateEntity
 import com.example.data.local.OfflineSyncQueueEntity
 import com.example.data.remote.AnchorRepository
 import com.example.model.AnchorScreen
-import com.example.model.AnchorSeedData
 import com.example.model.AppRule
 import com.example.model.ChildProfile
 import com.example.model.ChildRequest
@@ -57,21 +56,21 @@ data class AnchorUiState(
     val isCloudConnected: Boolean = false,
     val authLoading: Boolean = false,
     val statusBannerMessage: String? = null,
-    val currentUserUid: String = "local_guardian_sarah",
-    val guardianDisplayName: String = "Sarah Jenkins",
-    val guardianEmail: String = "sarah.jenkins@family.org",
-    val guardianRoleChip: String = "Mother",
+    val currentUserUid: String = "",
+    val guardianDisplayName: String = "Guardian",
+    val guardianEmail: String = "",
+    val guardianRoleChip: String = "Guardian",
     val notificationCadence: String = "All Safety & Requests",
-    val familyHousehold: FamilyHousehold = AnchorSeedData.defaultFamily("local_guardian_sarah"),
-    val children: List<ChildProfile> = AnchorSeedData.defaultChildren("local_guardian_sarah"),
-    val selectedChildId: String = "child_leo",
+    val familyHousehold: FamilyHousehold = FamilyHousehold(familyName = "My Family"),
+    val children: List<ChildProfile> = emptyList(),
+    val selectedChildId: String = "",
     val pairingCode: PairingCode = PairingCode(
         id = "",
         codeId = "",
         familyId = "",
         ownerUid = "",
-        childId = "child_leo",
-        childName = "Leo",
+        childId = "",
+        childName = "",
         code = "",
         expiresAtEpochMs = 0L,
         status = "NONE",
@@ -79,15 +78,15 @@ data class AnchorUiState(
     ),
     val pairedDevices: List<PairedDevice> = emptyList(),
     val pairingCountdownSeconds: Int = 0,
-    val appRules: List<AppRule> = AnchorSeedData.defaultAppRules("local_guardian_sarah"),
-    val schedules: List<ScheduleRoutine> = AnchorSeedData.defaultSchedules("local_guardian_sarah"),
-    val geofences: List<SafeGeofence> = AnchorSeedData.defaultGeofences("local_guardian_sarah"),
-    val alerts: List<SafetyAlert> = AnchorSeedData.defaultAlerts("local_guardian_sarah"),
-    val requests: List<ChildRequest> = AnchorSeedData.defaultRequests("local_guardian_sarah"),
-    val messages: List<FamilyMessage> = AnchorSeedData.defaultMessages("local_guardian_sarah"),
-    val tasks: List<FamilyTask> = AnchorSeedData.defaultTasks("local_guardian_sarah"),
-    val guardians: List<GuardianContact> = AnchorSeedData.defaultGuardians("local_guardian_sarah"),
-    val premiumConfig: PremiumFilterConfig = AnchorSeedData.defaultPremiumConfig("local_guardian_sarah"),
+    val appRules: List<AppRule> = emptyList(),
+    val schedules: List<ScheduleRoutine> = emptyList(),
+    val geofences: List<SafeGeofence> = emptyList(),
+    val alerts: List<SafetyAlert> = emptyList(),
+    val requests: List<ChildRequest> = emptyList(),
+    val messages: List<FamilyMessage> = emptyList(),
+    val tasks: List<FamilyTask> = emptyList(),
+    val guardians: List<GuardianContact> = emptyList(),
+    val premiumConfig: PremiumFilterConfig = PremiumFilterConfig(),
     val auditLogs: List<CachedAuditLogEntity> = emptyList(),
     val pendingOfflineSyncCount: Int = 0,
     // Screen-specific interactive UI states
@@ -237,8 +236,8 @@ class AnchorParentViewModel(
                     val user = result.user
                     onFirebaseUserAuthenticated(
                         uid = user.uid,
-                        displayName = user.displayName ?: "Sarah Jenkins",
-                        email = user.email ?: "sarah.jenkins@family.org"
+                        displayName = user.displayName ?: "Guardian",
+                        email = user.email.orEmpty()
                     )
                 }
                 is AuthResult.Cancelled -> {
@@ -467,31 +466,6 @@ class AnchorParentViewModel(
                     }
                 }
             } catch (_: Exception) {}
-        }
-    }
-
-    fun enterGuardianWorkspace(startScreen: AnchorScreen = AnchorScreen.P04_FAMILY_DASHBOARD) {
-        val state = _uiState.value
-        _uiState.update {
-            it.copy(
-                isSignedIn = true,
-                currentScreen = startScreen,
-                backStack = emptyList(),
-                statusBannerMessage = if (it.isCloudConnected) {
-                    "Shared Cloud Firestore & Room Cache Active"
-                } else {
-                    "Local Room SQLite Sandbox Active (Sign in with Google on P-01 for Cloud Firestore sync)"
-                }
-            )
-        }
-        viewModelScope.launch {
-            syncChildrenToLocalRoom(state.children)
-            recordAuditLog(
-                eventCode = "#LOC-101",
-                actionTitle = "Entered Guardian Workspace",
-                details = "Active profile: ${state.guardianDisplayName} (${state.familyHousehold.familyName})",
-                syncState = if (state.isCloudConnected) "ENFORCED" else "LOCAL_ONLY"
-            )
         }
     }
 

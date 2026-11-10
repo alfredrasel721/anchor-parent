@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
@@ -88,8 +87,6 @@ import com.example.viewmodel.AnchorUiState
 fun P01WelcomeSignInScreen(
     state: AnchorUiState,
     onGoogleSignIn: () -> Unit,
-    onEnterGuardianWorkspace: (AnchorScreen) -> Unit,
-    onStartOnboarding: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -222,51 +219,6 @@ fun P01WelcomeSignInScreen(
                     }
                 }
 
-                // Biometric / Instant Guardian Workspace Entry (supports emulators without Play account signed in)
-                OutlinedButton(
-                    onClick = { onEnterGuardianWorkspace(AnchorScreen.P04_FAMILY_DASHBOARD) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("enter_guardian_workspace_button"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Fingerprint,
-                        contentDescription = null,
-                        tint = AnchorSecondary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Unlock Sarah Jenkins Household (P-04 Dashboard)",
-                        color = AnchorPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onStartOnboarding,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("start_family_onboarding_button"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("New Family Setup (P-02)")
-                    }
-                    OutlinedButton(
-                        onClick = { onEnterGuardianWorkspace(AnchorScreen.P03_ADD_CHILD_PAIR_CODE) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("quick_pair_child_button"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("Pair Child Code (P-03)")
-                    }
-                }
             }
         }
 

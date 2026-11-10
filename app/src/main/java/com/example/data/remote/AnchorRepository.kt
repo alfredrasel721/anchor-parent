@@ -2,7 +2,6 @@ package com.example.data.remote
 
 import android.content.Context
 import com.example.R
-import com.example.model.AnchorSeedData
 import com.example.model.AppRule
 import com.example.model.ChildProfile
 import com.example.model.ChildRequest

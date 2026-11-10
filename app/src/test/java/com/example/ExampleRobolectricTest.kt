@@ -16,5 +16,9 @@ class ExampleRobolectricTest {
         assertEquals("", state.pairingCode.codeId)
         assertEquals(0, state.pairingCountdownSeconds)
         assertTrue(state.pairedDevices.isEmpty())
+        assertTrue(state.children.isEmpty())
+        assertTrue(state.appRules.isEmpty())
+        assertEquals("My Family", state.familyHousehold.familyName)
+        assertEquals("", state.currentUserUid)
     }
 }
