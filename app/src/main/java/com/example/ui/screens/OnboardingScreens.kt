@@ -586,7 +586,7 @@ fun P02FamilyOnboardingScreen(
                         onSaveHousehold(familyName, guardianName, selectedRole, selectedCadence)
                         onProceedToPairing()
                     },
-                    enabled = pledgeTransparent && pledgeEmergencyAlwaysOn,
+                    enabled = pledgeTransparent && pledgeEmergencyAlwaysOn && state.children.isNotEmpty(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -594,6 +594,12 @@ fun P02FamilyOnboardingScreen(
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text("Continue to Step 2: Pair Child Device (P-03)")
+                }
+                if (state.children.isEmpty()) {
+                    Text(
+                        "Add your actual child's profile above before pairing. Demo child profiles are not created for real accounts.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
