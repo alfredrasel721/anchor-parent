@@ -1,5 +1,5 @@
 const PROJECT_ID = "gen-lang-client-0963224775";
-const DATABASE_ID = "ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e";
+const DATABASE_ID = "ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d";
 const FIREBASE_CERT_URL = "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FIRESTORE_SCOPE = "https://www.googleapis.com/auth/datastore";
