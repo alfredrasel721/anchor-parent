@@ -1,0 +1,98 @@
+name: Deploy Anchor Firestore rules
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Type DEPLOY_RULES to publish the reviewed Firestore rules."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy reviewed Firestore security rules only
+    # This workflow is visible from main, but deployment is restricted to the
+    # reviewed integration branch until its PR is merged.
+    if: ${{ github.ref == 'refs/heads/fix/shared-firebase-secure-pairing' && github.event.inputs.confirm_production == 'DEPLOY_RULES' }}
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: gen-lang-client-0963224775
+      FIRESTORE_DATABASE_ID: ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d
+    steps:
+      - name: Check out the selected reviewed branch
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+          node -e 'const x=JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON); if (x.project_id !== process.env.FIREBASE_PROJECT_ID || !x.private_key || !x.client_email) { console.error("Service account does not match the Anchor Firebase project."); process.exit(1); }'
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Confirm Firestore database is Spark free-tier eligible
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          node <<'NODE'
+          const crypto = require("node:crypto");
+          const credentials = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+          const now = Math.floor(Date.now() / 1000);
+          const encode = value => Buffer.from(JSON.stringify(value)).toString("base64url");
+          const unsigned = [
+            encode({ alg: "RS256", typ: "JWT" }),
+            encode({
+              iss: credentials.client_email,
+              scope: "https://www.googleapis.com/auth/cloud-platform",
+              aud: "https://oauth2.googleapis.com/token",
+              iat: now,
+              exp: now + 3600
+            })
+          ].join(".");
+          const signer = crypto.createSign("RSA-SHA256");
+          signer.update(unsigned);
+          signer.end();
+          const assertion = unsigned + "." + signer.sign(credentials.private_key, "base64url");
+          (async () => {
+            const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+              method: "POST",
+              headers: { "content-type": "application/x-www-form-urlencoded" },
+              body: new URLSearchParams({
+                grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                assertion
+              })
+            });
+            if (!tokenResponse.ok) throw new Error("Google OAuth token exchange failed: HTTP " + tokenResponse.status);
+            const token = (await tokenResponse.json()).access_token;
+            const endpoint = "https://firestore.googleapis.com/v1/projects/" +
+              encodeURIComponent(process.env.FIREBASE_PROJECT_ID) +
+              "/databases/" + encodeURIComponent(process.env.FIRESTORE_DATABASE_ID);
+            const response = await fetch(endpoint, { headers: { authorization: "Bearer " + token } });
+            if (!response.ok) throw new Error("Firestore metadata lookup failed: HTTP " + response.status + " " + (await response.text()).slice(0, 400));
+            const database = await response.json();
+            console.log("Firestore database:", process.env.FIRESTORE_DATABASE_ID);
+            console.log("Location:", database.locationId);
+            console.log("Type:", database.type);
+            console.log("Spark free-tier eligible:", database.freeTier);
+            if (database.freeTier !== true) throw new Error("STOP: this Firestore database is not confirmed Spark free-tier eligible. No rules were deployed.");
+          })().catch(error => { console.error(error); process.exit(1); });
+          NODE
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Deploy Firestore security rules only
+        run: firebase deploy --only firestore:rules --project "$FIREBASE_PROJECT_ID" --non-interactive
