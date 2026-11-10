@@ -157,6 +157,34 @@ jobs:
                     " | freeTier: " + String(item.freeTier) +
                     " | location: " + String(item.locationId ?? "unknown") +
                     " | type: " + String(item.type ?? "unknown"));
+                  if (id === process.env.FIRESTORE_DATABASE_ID || item.freeTier === true) {
+                    const collectionUrl = "https://firestore.googleapis.com/v1/projects/" +
+                      encodeURIComponent(process.env.FIREBASE_PROJECT_ID) +
+                      "/databases/" + encodeURIComponent(id) + "/documents:listCollectionIds";
+                    let collectionCount = 0;
+                    let pageToken = undefined;
+                    let inventoryStatus = "readable";
+                    do {
+                      const inventoryResponse = await fetch(collectionUrl, {
+                        method: "POST",
+                        headers: {
+                          authorization: "Bearer " + accessToken,
+                          "content-type": "application/json"
+                        },
+                        body: JSON.stringify({ pageSize: 100, ...(pageToken ? { pageToken } : {}) })
+                      });
+                      if (!inventoryResponse.ok) {
+                        inventoryStatus = "unavailable (HTTP " + inventoryResponse.status + ")";
+                        break;
+                      }
+                      const page = await inventoryResponse.json();
+                      collectionCount += (page.collectionIds ?? []).length;
+                      pageToken = page.nextPageToken;
+                    } while (pageToken && collectionCount < 1000);
+                    console.log("Read-only root collection inventory for " + id +
+                      ": " + inventoryStatus +
+                      (inventoryStatus === "readable" ? ", root collections: " + collectionCount : ""));
+                  }
                 }
               } else {
                 console.log("Could not list databases (HTTP " + listResponse.status +
