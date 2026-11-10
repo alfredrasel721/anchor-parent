@@ -647,6 +647,8 @@ class AnchorRepository(
         displayName: String,
         email: String
     ): FamilyHousehold {
+        require(uid.isNotBlank()) { "A verified Firebase user ID is required." }
+        require(email.isNotBlank()) { "A verified Google account email is required." }
         val familyId = "fam_$uid"
         val existingUser = getUserProfile(uid)
         if (existingUser == null) {
@@ -654,8 +656,8 @@ class AnchorRepository(
                 UserProfile(
                     id = uid,
                     uid = uid,
-                    displayName = displayName.ifBlank { "Sarah Jenkins" },
-                    email = email.ifBlank { "sarah.jenkins@family.org" },
+                    displayName = displayName.ifBlank { "Guardian" },
+                    email = email,
                     role = "PRIMARY_GUARDIAN",
                     familyId = familyId,
                     notificationCadence = "ALL_EVENTS"
@@ -663,22 +665,21 @@ class AnchorRepository(
             )
         }
         val existingFamily = getFamilyHousehold(familyId)
-        if (existingFamily != null) {
-            return existingFamily
-        }
+        if (existingFamily != null) return existingFamily
 
-        val seededFamily = AnchorSeedData.defaultFamily(uid, familyId)
-        upsertFamilyHousehold(seededFamily)
-        AnchorSeedData.defaultChildren(uid, familyId).forEach { upsertChildProfile(it) }
-        AnchorSeedData.defaultAppRules(uid, familyId, "child_leo").forEach { upsertAppRule(it) }
-        AnchorSeedData.defaultSchedules(uid, familyId, "child_leo").forEach { upsertScheduleRoutine(it) }
-        AnchorSeedData.defaultGeofences(uid, familyId, "child_leo").forEach { upsertSafeGeofence(it) }
-        AnchorSeedData.defaultAlerts(uid, familyId).forEach { upsertSafetyAlert(it) }
-        AnchorSeedData.defaultRequests(uid, familyId).forEach { upsertChildRequest(it) }
-        AnchorSeedData.defaultMessages(uid, familyId).forEach { upsertFamilyMessage(it) }
-        AnchorSeedData.defaultTasks(uid, familyId).forEach { upsertFamilyTask(it) }
-        AnchorSeedData.defaultGuardians(uid, familyId).forEach { upsertGuardianContact(it) }
-        upsertPremiumConfig(AnchorSeedData.defaultPremiumConfig(uid, familyId, "child_leo"))
-        return seededFamily
+        // Never create fake children, geographic locations, SOS alerts, guardian
+        // contacts, rules, or simulated messages for a real signed-in household.
+        // A parent must enter their own child profile in the onboarding screen.
+        val household = FamilyHousehold(
+            id = familyId,
+            familyId = familyId,
+            familyName = "My Family",
+            ownerUid = uid,
+            subscriptionTier = "FREE",
+            subscriptionActive = false
+        )
+        upsertFamilyHousehold(household)
+        return household
     }
+
 }
