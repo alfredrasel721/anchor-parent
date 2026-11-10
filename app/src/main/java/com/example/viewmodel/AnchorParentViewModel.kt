@@ -266,12 +266,22 @@ class AnchorParentViewModel(
             val familyId = "fam_$uid"
             _uiState.update {
                 it.copy(
-                    authLoading = false,
-                    isSignedIn = true,
+                    authLoading = true,
+                    isSignedIn = false,
                     currentUserUid = uid,
                     guardianDisplayName = displayName,
                     guardianEmail = email,
-                    currentScreen = AnchorScreen.P04_FAMILY_DASHBOARD,
+                    currentScreen = AnchorScreen.P01_WELCOME_SIGN_IN,
+                    children = emptyList(),
+                    selectedChildId = "",
+                    appRules = emptyList(),
+                    schedules = emptyList(),
+                    geofences = emptyList(),
+                    alerts = emptyList(),
+                    requests = emptyList(),
+                    messages = emptyList(),
+                    tasks = emptyList(),
+                    guardians = emptyList(),
                     backStack = emptyList(),
                     statusBannerMessage = "Authenticating & verifying shared Firestore household ($familyId)..."
                 )
@@ -281,6 +291,8 @@ class AnchorParentViewModel(
                 val children = repository.getChildren(familyId)
                 _uiState.update {
                     it.copy(
+                        authLoading = false,
+                        isSignedIn = true,
                         isCloudConnected = true,
                         familyHousehold = household,
                         children = children,
@@ -326,8 +338,10 @@ class AnchorParentViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
+                        authLoading = false,
+                        isSignedIn = false,
                         isCloudConnected = false,
-                        statusBannerMessage = "Signed in ($email), but Firestore sync failed: ${e.localizedMessage ?: "Offline Room queue active"}"
+                        statusBannerMessage = "Cloud setup is not ready: ${e.localizedMessage ?: "Check Google sign-in and Firestore permissions"}"
                     )
                 }
             }
