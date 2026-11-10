@@ -20,7 +20,7 @@ The deployment uses these non-secret variables:
 - `FIREBASE_PROJECT_ID=gen-lang-client-0963224775`
 - `FIRESTORE_DATABASE_ID=ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d`
 
-Add the JSON service-account key as a Worker **Secret** named `FIREBASE_SERVICE_ACCOUNT`. Never commit it or send it in chat.
+The production Worker `anchor-family-api` has been deployed, and the `workers.dev` subdomain is enabled. Add the JSON service-account key in the Cloudflare dashboard as a Worker **Secret** named `FIREBASE_SERVICE_ACCOUNT`; this secret has not been added yet, so authenticated data operations are not live. Never commit the key or send it in chat.
 
 The service account needs:
 - Cloud Datastore User (`roles/datastore.user`) for Firestore document operations.
