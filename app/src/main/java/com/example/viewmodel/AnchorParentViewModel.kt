@@ -107,7 +107,31 @@ data class AnchorUiState(
     val lastSelfTestSummary: String = "Room SQLite Cache Ready • Sign in with Google for Cloud Firestore Verification"
 ) {
     val selectedChild: ChildProfile
-        get() = children.find { it.childId == selectedChildId } ?: children.first()
+        get() = children.find { it.childId == selectedChildId }
+            ?: children.firstOrNull()
+            ?: ChildProfile(
+                childId = "",
+                name = "No child added",
+                deviceName = "Not paired",
+                deviceModel = "Unavailable",
+                osVersion = "Unknown",
+                batteryLevel = 0,
+                chargingStatus = "Unknown",
+                networkType = "Offline",
+                networkName = "Unavailable",
+                storageFreeGb = 0.0,
+                syncStatus = "PENDING",
+                lastSyncLabel = "Add a child profile to get started",
+                usedMinutesToday = 0,
+                dailyAllowanceMinutes = 0,
+                currentMode = "Not configured",
+                locationLabel = "Location unavailable",
+                latitude = 0.0,
+                longitude = 0.0,
+                knoxVerified = false,
+                accessibilityEnabled = false,
+                deviceAdminEnabled = false
+            )
 
     val isPremiumActive: Boolean
         get() = familyHousehold.subscriptionActive && familyHousehold.subscriptionTier != "FREE"
@@ -165,8 +189,8 @@ class AnchorParentViewModel(
         if (currentUser != null) {
             onFirebaseUserAuthenticated(
                 uid = currentUser.uid,
-                displayName = currentUser.displayName ?: "Sarah Jenkins",
-                email = currentUser.email ?: "sarah.jenkins@family.org"
+                displayName = currentUser.displayName ?: "Guardian",
+                email = currentUser.email.orEmpty()
             )
         }
     }
@@ -254,16 +278,31 @@ class AnchorParentViewModel(
             }
             try {
                 val household = repository.bootstrapHouseholdIfNeeded(uid, displayName, email)
-                val children = repository.getChildren(familyId).ifEmpty {
-                    AnchorSeedData.defaultChildren(uid, familyId)
-                }
+                val children = repository.getChildren(familyId)
                 _uiState.update {
                     it.copy(
                         isCloudConnected = true,
                         familyHousehold = household,
                         children = children,
-                        selectedChildId = children.first().childId,
-                        statusBannerMessage = "Authenticated as $email • Shared Cloud Firestore Sync Verified",
+                        selectedChildId = children.firstOrNull()?.childId.orEmpty(),
+                        currentScreen = if (children.isEmpty()) {
+                            AnchorScreen.P02_FAMILY_ONBOARDING
+                        } else {
+                            AnchorScreen.P04_FAMILY_DASHBOARD
+                        },
+                        appRules = emptyList(),
+                        schedules = emptyList(),
+                        geofences = emptyList(),
+                        alerts = emptyList(),
+                        requests = emptyList(),
+                        messages = emptyList(),
+                        tasks = emptyList(),
+                        guardians = emptyList(),
+                        statusBannerMessage = if (children.isEmpty()) {
+                            "Welcome! Add your own child's profile before pairing a device."
+                        } else {
+                            "Authenticated as $email • Shared Cloud Firestore Sync Verified"
+                        },
                         lastSelfTestSummary = "All 4 Guardian Pipelines Verified (Shared Firestore DB Connected)"
                     )
                 }
@@ -506,19 +545,19 @@ class AnchorParentViewModel(
             gradeLabel = gradeLabel.ifBlank { "Student Profile" },
             avatarInitials = initials,
             deviceName = deviceName.ifBlank { "${name.trim()}'s Android Device" },
-            deviceModel = "Pending Pairing Handshake",
-            osVersion = "Android 14+",
-            batteryLevel = 100,
-            chargingStatus = "Ready to Pair",
-            networkType = "Wi-Fi",
-            networkName = "Household Network",
-            storageFreeGb = 64.0,
+            deviceModel = "Awaiting pairing",
+            osVersion = "Unknown",
+            batteryLevel = 0,
+            chargingStatus = "Unknown",
+            networkType = "Unknown",
+            networkName = "Not connected",
+            storageFreeGb = 0.0,
             syncStatus = "PENDING",
             lastSyncLabel = "Awaiting 6-Digit Pairing Code",
             usedMinutesToday = 0,
             dailyAllowanceMinutes = 120,
             currentMode = "Onboarding Setup",
-            locationLabel = "Home Sanctuary"
+            locationLabel = "Location unavailable"
         )
 
         val updatedChildren = state.children + newChild
