@@ -3,7 +3,7 @@
 Anchor uses Firebase Authentication and Firestore for identity and app data, with a Cloudflare Worker for trusted server-side operations.
 
 - Firebase project: `gen-lang-client-0963224775`
-- Firestore database currently configured in the apps: `ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e`
+- Firestore database currently configured in the apps: `ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d`
 - Firestore location: `asia-south1`
 - Worker URL: `https://anchor-family-api.anchorfamily.workers.dev`
 - Parent package: `com.anchor.parent`
@@ -11,9 +11,9 @@ Anchor uses Firebase Authentication and Firestore for identity and app data, wit
 
 ## Important: Spark/free-tier check is a deployment gate
 
-The configured Firestore database has a custom database ID, not `(default)`. The Parent CI workflow checks the Firestore database metadata field `freeTier` using the repository secret `FIREBASE_SERVICE_ACCOUNT`. A custom database ID is not enough to infer eligibility; use the returned metadata rather than guessing.
+On 2026-11-10, GitHub Actions verified the previous Parent database had `freeTier: false`. It also verified the Anchor Family Safe database has `freeTier: true` and that both databases had zero root-level collections. No Firestore data was deleted or copied. The Parent CI workflow now verifies that the currently configured Anchor Family Safe database retains free-tier eligibility before backend deployment.
 
-**Do not deploy the Worker against Firestore while the project is on Spark unless the metadata check confirms `freeTier: true`.** If the result is false or cannot be read, pause and resolve the database plan first. The alternatives are to migrate the app to a Spark-eligible `(default)` database (including data and rules) or use a billing-enabled Firestore plan. Cloudflare Workers does not remove Firestore's own billing requirements.
+**Do not deploy the Worker against Firestore while the project is on Spark unless the metadata check confirms `freeTier: true`.** If the result becomes false or cannot be read, pause and resolve the database plan before backend deployment. Cloudflare Workers does not remove Firestore's own billing requirements.
 
 ## Worker API
 
@@ -62,7 +62,7 @@ The production Worker is not deployed yet. The staging Worker `anchor-family-api
 The Worker also uses these non-secret values:
 
 - `FIREBASE_PROJECT_ID=gen-lang-client-0963224775`
-- `FIRESTORE_DATABASE_ID=ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e`
+- `FIRESTORE_DATABASE_ID=ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d`
 
 ## Firestore security rules
 
