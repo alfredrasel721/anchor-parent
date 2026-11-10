@@ -18,7 +18,7 @@ All routes except `GET /health` require a Firebase ID token in `Authorization: B
 The deployment uses these non-secret variables:
 
 - `FIREBASE_PROJECT_ID=gen-lang-client-0963224775`
-- `FIRESTORE_DATABASE_ID=ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e`
+- `FIRESTORE_DATABASE_ID=ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d`
 
 Add the JSON service-account key as a Worker **Secret** named `FIREBASE_SERVICE_ACCOUNT`. Never commit it or send it in chat.
 
