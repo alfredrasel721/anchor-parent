@@ -343,8 +343,19 @@ service cloud.firestore {
     match /families/{familyId} {
       allow get: if canReadFamilyDoc(familyId);
       allow list: if canListFamilyCollection(familyId);
-      allow create: if isCreatingAsOwner() && isValidFamilyHousehold(request.resource.data);
-      allow update: if isDocOwner() && ownerUnchanged() && isValidFamilyHousehold(request.resource.data);
+      // Subscription entitlements are authoritative server state, never writable by an Android client.
+      // Even the family owner must not grant themselves Premium access.
+      allow create: if isFamilyPathOwner(familyId) &&
+        isCreatingAsOwner() &&
+        request.resource.data.familyId == familyId &&
+        isValidFamilyHousehold(request.resource.data) &&
+        request.resource.data.subscriptionTier == 'FREE' &&
+        request.resource.data.subscriptionActive == false;
+      allow update: if isFamilyPathOwner(familyId) &&
+        isDocOwner() && ownerUnchanged() &&
+        isValidFamilyHousehold(request.resource.data) &&
+        request.resource.data.subscriptionTier == resource.data.subscriptionTier &&
+        request.resource.data.subscriptionActive == resource.data.subscriptionActive;
       allow delete: if isDocOwner();
 
       match /children/{childId} {
