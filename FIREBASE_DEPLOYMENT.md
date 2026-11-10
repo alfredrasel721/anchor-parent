@@ -50,7 +50,7 @@ The Parent repository's GitHub secret `FIREBASE_SERVICE_ACCOUNT` is used for the
 
 ## Add the Worker secret in Cloudflare
 
-The production Worker is not deployed yet. The staging Worker `anchor-family-api-staging` was deployed only to validate the JavaScript bundle. Add the secret to the production Worker after the Firestore free-tier gate passes and the production Worker is created.
+The production Worker `anchor-family-api` has been deployed and its `workers.dev` subdomain enabled; the health route can be smoke-tested. The Firebase service-account secret has **not** yet been configured in the Worker, so privileged pairing/SOS endpoints are intentionally unavailable. Add the secret in the Cloudflare dashboard only after confirming the service account has the required permissions.
 
 1. Open the [Cloudflare dashboard](https://dash.cloudflare.com/).
 2. Select **Workers & Pages** > **anchor-family-api**.
