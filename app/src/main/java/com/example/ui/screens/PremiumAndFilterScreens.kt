@@ -152,12 +152,12 @@ fun P15PremiumFeaturesScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
                 val sixGroups = listOf(
-                    Triple("1. Screen Mirroring & Live Screen Viewing", "Audited, consent-gated live screen check-in (P-19)", AnchorScreen.P19_LIVE_SESSION_VIEWER),
-                    Triple("2. Live Camera Access", "Emergency / safety consent-gated front camera check (P-19)", AnchorScreen.P19_LIVE_SESSION_VIEWER),
-                    Triple("3. Live Microphone Audio", "Audited ambient audio & two-way voice safety check (P-19)", AnchorScreen.P19_LIVE_SESSION_VIEWER),
-                    Triple("4. Notification Filtering", "Study & Bedtime distraction batching & streak interception (P-18)", AnchorScreen.P18_NOTIFICATION_FILTER),
-                    Triple("5. Website & Web-Content Filtering", "SafeSearch, category blocks & custom domain lists (P-16)", AnchorScreen.P16_WEB_FILTER_RULES),
-                    Triple("6. Social-Media Content Filtering", "Discord, Roblox, WhatsApp & YouTube safety shields (P-17)", AnchorScreen.P17_SOCIAL_CONTENT_FILTERS)
+                    Triple("1. Screen Mirroring & Live Screen Viewing", "Audited, consent-gated live screen check-in", AnchorScreen.P19_LIVE_SESSION_VIEWER),
+                    Triple("2. Live Camera Access", "Emergency / safety consent-gated front camera check", AnchorScreen.P19_LIVE_SESSION_VIEWER),
+                    Triple("3. Live Microphone Audio", "Audited ambient audio & two-way voice safety check", AnchorScreen.P19_LIVE_SESSION_VIEWER),
+                    Triple("4. Notification Filtering", "Study & Bedtime distraction batching & streak interception", AnchorScreen.P18_NOTIFICATION_FILTER),
+                    Triple("5. Website & Web-Content Filtering", "SafeSearch, category blocks & custom domain lists", AnchorScreen.P16_WEB_FILTER_RULES),
+                    Triple("6. Social-Media Content Filtering", "Discord, Roblox, WhatsApp & YouTube safety shields", AnchorScreen.P17_SOCIAL_CONTENT_FILTERS)
                 )
                 sixGroups.forEach { (title, subtitle, targetScreen) ->
                     Surface(
@@ -215,10 +215,10 @@ fun P15PremiumFeaturesScreen(
                             .testTag("select_annual_plan_card")
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            Text("BEST VALUE • SAVE 37%", style = MaterialTheme.typography.labelSmall, color = AnchorSecondary)
+                            Text("Annual plan", style = MaterialTheme.typography.labelSmall, color = AnchorSecondary)
                             Text("Annual Family", style = MaterialTheme.typography.titleMedium)
-                            Text("$4.99 / mo", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
-                            Text("Billed $59.99/yr • Up to 5 children", style = MaterialTheme.typography.bodySmall)
+                            Text("Pricing shown in Google Play", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
+                            Text("Final price and terms at checkout", style = MaterialTheme.typography.bodySmall)
                         }
                     }
 
@@ -239,8 +239,8 @@ fun P15PremiumFeaturesScreen(
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text("FLEXIBLE", style = MaterialTheme.typography.labelSmall)
                             Text("Monthly Plan", style = MaterialTheme.typography.titleMedium)
-                            Text("$7.99 / mo", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
-                            Text("Cancel anytime • Up to 5 children", style = MaterialTheme.typography.bodySmall)
+                            Text("Pricing shown in Google Play", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
+                            Text("Final price and terms at checkout", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -255,7 +255,7 @@ fun P15PremiumFeaturesScreen(
                 ) {
                     Text(
                         if (state.isPremiumActive) "Update Active Plan ($selectedPlan)"
-                        else "Start 14-Day Free Trial & Unlock All 6 Premium Groups"
+                        else "Check Premium purchase availability"
                     )
                 }
 
@@ -266,12 +266,12 @@ fun P15PremiumFeaturesScreen(
                             .fillMaxWidth()
                             .testTag("revert_to_free_tier_btn")
                     ) {
-                        Text("Switch Back to Free Core Tier (Test Paywall Gating)")
+                        Text("Manage subscription in Google Play")
                     }
                 }
 
                 Text(
-                    text = "Environment Note: Subscription state is persisted in Firebase Firestore (`families/{familyId}`) and local Room storage. Live Google Play Billing merchant settlement requires a Play Console release build.",
+                    text = "Premium is unlocked only after a Google Play purchase is verified by the server. Billing is not configured yet; this screen does not activate any paid feature.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -573,7 +573,7 @@ fun P17SocialAppContentFiltersScreen(
                             selected = config.socialShieldProfile == mode,
                             enabled = state.isPremiumActive,
                             onClick = { onSelectShieldProfile(mode) },
-                            label = { Text(mode.replace("_", " ")) },
+                            label = { Text(mode.replace("_", "")) },
                             modifier = Modifier.testTag("social_shield_$mode")
                         )
                     }

@@ -27,13 +27,13 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.PhonelinkSetup
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +71,7 @@ import com.example.model.AnchorScreen
 import com.example.ui.components.BilateralTransparencyCard
 import com.example.ui.components.ChildSelectorBar
 import com.example.ui.components.StatusBadge
+import com.example.ui.theme.AnchorError
 import com.example.ui.theme.AnchorPrimary
 import com.example.ui.theme.AnchorPrimaryContainer
 import com.example.ui.theme.AnchorSecondary
@@ -85,8 +87,6 @@ import com.example.viewmodel.AnchorUiState
 fun P01WelcomeSignInScreen(
     state: AnchorUiState,
     onGoogleSignIn: () -> Unit,
-    onEnterGuardianWorkspace: (AnchorScreen) -> Unit,
-    onStartOnboarding: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -183,7 +183,7 @@ fun P01WelcomeSignInScreen(
                 }
 
                 Text(
-                    text = "Sign in with your Google Guardian account to synchronize your household across Firebase Firestore Enterprise and local Room storage.",
+                    text = "Sign in with your Google Guardian account to synchronize your household across Firebase Firestore and local Room storage.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -219,51 +219,6 @@ fun P01WelcomeSignInScreen(
                     }
                 }
 
-                // Biometric / Instant Guardian Workspace Entry (supports emulators without Play account signed in)
-                OutlinedButton(
-                    onClick = { onEnterGuardianWorkspace(AnchorScreen.P04_FAMILY_DASHBOARD) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .testTag("enter_guardian_workspace_button"),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Fingerprint,
-                        contentDescription = null,
-                        tint = AnchorSecondary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Unlock Sarah Jenkins Household (P-04 Dashboard)",
-                        color = AnchorPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = onStartOnboarding,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("start_family_onboarding_button"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("New Family Setup (P-02)")
-                    }
-                    OutlinedButton(
-                        onClick = { onEnterGuardianWorkspace(AnchorScreen.P03_ADD_CHILD_PAIR_CODE) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("quick_pair_child_button"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("Pair Child Code (P-03)")
-                    }
-                }
             }
         }
 
@@ -583,14 +538,20 @@ fun P02FamilyOnboardingScreen(
                         onSaveHousehold(familyName, guardianName, selectedRole, selectedCadence)
                         onProceedToPairing()
                     },
-                    enabled = pledgeTransparent && pledgeEmergencyAlwaysOn,
+                    enabled = pledgeTransparent && pledgeEmergencyAlwaysOn && state.children.isNotEmpty(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
                         .testTag("continue_to_pair_code_btn"),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Continue to Step 2: Pair Child Device (P-03)")
+                    Text("Continue to Step 2: Pair Child Device")
+                }
+                if (state.children.isEmpty()) {
+                    Text(
+                        "Add your actual child's profile above before pairing. Demo child profiles are not created for real accounts.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
@@ -606,14 +567,17 @@ fun P03AddChildPairCodeScreen(
     onSelectChild: (String) -> Unit,
     onGenerateNewCode: () -> Unit,
     onRevokeCode: () -> Unit = {},
+    onUnpairDevice: (String) -> Unit = {},
     onCopyCode: () -> Unit,
     onShareInstructions: () -> Unit,
     onFinishToDashboard: () -> Unit
 ) {
     var showQrMatrix by remember { mutableStateOf(false) }
+    var deviceToUnpair by remember { mutableStateOf<Pair<String, String>?>(null) }
     val selectedChild = state.selectedChild
     val isCodeRevoked = state.pairingCode.revoked || state.pairingCode.status == "REVOKED"
     val isCodeConsumed = state.pairingCode.status == "CONSUMED"
+    val isCodeActive = state.pairingCode.status == "ACTIVE" && state.pairingCode.code.isNotBlank() && state.pairingCountdownSeconds > 0
 
     Column(
         modifier = Modifier
@@ -661,7 +625,10 @@ fun P03AddChildPairCodeScreen(
                         when {
                             isCodeRevoked -> "REVOKED"
                             isCodeConsumed -> "CONSUMED"
-                            else -> "VALID 10M TTL"
+                            isCodeActive -> "VALID 10M TTL"
+                            state.pairingCode.status == "PENDING" -> "GENERATING"
+                            state.pairingCode.status == "FAILED" -> "FAILED"
+                            else -> "NO ACTIVE CODE"
                         }
                     )
                 }
@@ -701,7 +668,7 @@ fun P03AddChildPairCodeScreen(
                             .testTag("pair_mode_qr_tab")
                     ) {
                         Text(
-                            text = "QR Handshake Matrix",
+                            text = "QR Preview",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (showQrMatrix) Color.White else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
@@ -723,7 +690,11 @@ fun P03AddChildPairCodeScreen(
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = if (isCodeRevoked) "REVOKED" else state.pairingCode.code,
+                                text = when {
+                                    isCodeRevoked -> "REVOKED"
+                                    isCodeActive -> state.pairingCode.code
+                                    else -> "—"
+                                },
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontSize = 42.sp,
                                     letterSpacing = 6.sp,
@@ -734,10 +705,10 @@ fun P03AddChildPairCodeScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = if (isCodeRevoked) {
-                                    "Code invalidated by Guardian • Tap 'New Code' to issue a fresh token"
-                                } else {
-                                    "One-Time Cryptographic Token (10-min TTL) • Target: ${selectedChild.deviceName}"
+                                text = when {
+                                    isCodeRevoked -> "Code invalidated by Guardian • Tap 'New Code' to issue a fresh token"
+                                    isCodeActive -> "One-time server-verified code • Expires in 10 minutes • Target: ${selectedChild.deviceName}"
+                                    else -> "No active code. Tap 'New Code' to request a secure passcode."
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -745,6 +716,13 @@ fun P03AddChildPairCodeScreen(
                             )
                         }
                     }
+                } else if (!isCodeActive) {
+                    Text(
+                        text = "Generate an active passcode first. QR scanning is not enabled; use the six-digit passcode in Anchor Child.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 } else {
                     // Deterministic visual QR matrix rendered on Canvas
                     Surface(
@@ -777,7 +755,7 @@ fun P03AddChildPairCodeScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Scan from Anchor Child App on ${selectedChild.deviceName}",
+                        text = "QR preview only. QR scanning is not enabled; enter the six-digit code in Anchor Child.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -791,7 +769,7 @@ fun P03AddChildPairCodeScreen(
                 ) {
                     OutlinedButton(
                         onClick = onCopyCode,
-                        enabled = !isCodeRevoked,
+                        enabled = isCodeActive,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("copy_pairing_code_btn")
@@ -812,7 +790,7 @@ fun P03AddChildPairCodeScreen(
                     }
                     OutlinedButton(
                         onClick = onRevokeCode,
-                        enabled = !isCodeRevoked,
+                        enabled = isCodeActive,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("revoke_pairing_code_btn")
@@ -872,9 +850,18 @@ fun P03AddChildPairCodeScreen(
                             ) {
                                 Column {
                                     Text("${dev.childName} • ${dev.deviceName}", style = MaterialTheme.typography.titleSmall)
-                                    Text("UID: ${dev.childUid} • Code: ${dev.redeemedCode}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Device UID: ${dev.childUid}", style = MaterialTheme.typography.bodySmall)
                                 }
-                                StatusBadge(dev.status)
+                                Column(horizontalAlignment = Alignment.End) {
+                                    StatusBadge(dev.status)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        onClick = { deviceToUnpair = dev.deviceId to dev.childName },
+                                        modifier = Modifier.testTag("unpair_device_${dev.deviceId}")
+                                    ) {
+                                        Text("Unpair", color = AnchorError)
+                                    }
+                                }
                             }
                         }
                     }
@@ -902,7 +889,7 @@ fun P03AddChildPairCodeScreen(
                 }
                 Text(
                     text = "1. Install Anchor Child Companion on ${selectedChild.name}'s Android device.\n" +
-                        "2. Enter passcode ${state.pairingCode.code} or scan the QR matrix above.\n" +
+                        (if (isCodeActive) "2. Enter passcode ${state.pairingCode.code} in Anchor Child.\n" else "2. Generate a one-time passcode and enter it in Anchor Child.\n") +
                         "3. Review the transparent Family Charter together with ${selectedChild.name} and grant Usage Stats, Accessibility & Location permissions.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -917,10 +904,36 @@ fun P03AddChildPairCodeScreen(
                 ) {
                     Icon(Icons.Default.CheckCircle, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open Family Dashboard (P-04)")
+                    Text("Open Family Dashboard")
                 }
             }
         }
+    }
+
+    deviceToUnpair?.let { (deviceUid, childName) ->
+        AlertDialog(
+            onDismissRequest = { deviceToUnpair = null },
+            title = { Text("Unpair Child Device?") },
+            text = {
+                Text("This disconnects $childName from this household. The device will need a new one-time code from Anchor Parent to reconnect.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        deviceToUnpair = null
+                        onUnpairDevice(deviceUid)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AnchorError)
+                ) {
+                    Text("Unpair Device")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToUnpair = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

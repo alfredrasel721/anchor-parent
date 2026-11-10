@@ -313,6 +313,24 @@ service cloud.firestore {
     // Collection Rules
     // ===============================================================
 
+    // Never expose pairing-code lookup hashes or brute-force counters to mobile clients.
+    match /pairingCodeLookups/{lookupId} {
+      allow read, write: if false;
+    }
+
+    // The FCM topic is a server-only secret. Mobile clients must never read or write it.
+    match /familyNotificationTopics/{familyId} {
+      allow read, write: if false;
+    }
+
+    match /pairingCodeLookupIndexes/{codeId} {
+      allow read, write: if false;
+    }
+
+    match /pairingRateLimits/{childUid} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
@@ -325,8 +343,19 @@ service cloud.firestore {
     match /families/{familyId} {
       allow get: if canReadFamilyDoc(familyId);
       allow list: if canListFamilyCollection(familyId);
-      allow create: if isCreatingAsOwner() && isValidFamilyHousehold(request.resource.data);
-      allow update: if isDocOwner() && ownerUnchanged() && isValidFamilyHousehold(request.resource.data);
+      // Subscription entitlements are authoritative server state, never writable by an Android client.
+      // Even the family owner must not grant themselves Premium access.
+      allow create: if isFamilyPathOwner(familyId) &&
+        isCreatingAsOwner() &&
+        request.resource.data.familyId == familyId &&
+        isValidFamilyHousehold(request.resource.data) &&
+        request.resource.data.subscriptionTier == 'FREE' &&
+        request.resource.data.subscriptionActive == false;
+      allow update: if isFamilyPathOwner(familyId) &&
+        isDocOwner() && ownerUnchanged() &&
+        isValidFamilyHousehold(request.resource.data) &&
+        request.resource.data.subscriptionTier == resource.data.subscriptionTier &&
+        request.resource.data.subscriptionActive == resource.data.subscriptionActive;
       allow delete: if isDocOwner();
 
       match /children/{childId} {
@@ -338,27 +367,18 @@ service cloud.firestore {
         allow delete: if isDocOwner();
       }
 
+      // Pairing secrets and membership transitions are written only by trusted Admin SDK callables.
+      // The Parent may inspect status; Child clients cannot read raw or hashed pairing material.
       match /pairingCodes/{codeId} {
-        allow get: if isAuthenticated();
-        allow list: if isFamilyPathOwner(familyId);
-        allow create: if isCreatingAsOwner() && isValidPairingCode(request.resource.data, familyId);
-        allow update: if (isDocOwner() && ownerUnchanged() && isValidPairingCode(request.resource.data, familyId)) ||
-          isValidChildPairingConsumption(familyId);
-        allow delete: if isDocOwner();
+        allow get, list: if isFamilyPathOwner(familyId);
+        allow create, update, delete: if false;
       }
 
+      // Membership is created/revoked only by the trusted pairing service.
       match /pairedDevices/{deviceId} {
-        allow get: if canReadFamilyDoc(familyId) || isOwner(deviceId);
-        allow list: if canListFamilyCollection(familyId);
-        allow create: if isValidVerifiedPairedDeviceCreation(familyId, deviceId);
-        allow update: if (isDocOwner() && ownerUnchanged()) ||
-          (isOwner(deviceId) &&
-            resource.data.status == 'PAIRED' &&
-            request.resource.data.status == 'PAIRED' &&
-            request.resource.data.familyId == resource.data.familyId &&
-            request.resource.data.childId == resource.data.childId &&
-            request.resource.data.ownerUid == resource.data.ownerUid);
-        allow delete: if isDocOwner() || isFamilyPathOwner(familyId);
+        allow get: if isOwner(deviceId) || isFamilyPathOwner(familyId);
+        allow list: if isFamilyPathOwner(familyId);
+        allow create, update, delete: if false;
       }
 
       match /appRules/{ruleId} {

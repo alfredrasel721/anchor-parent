@@ -16,7 +16,7 @@ jobs:
     name: Deploy reviewed Firestore security rules only
     # This workflow is visible from main, but deployment is restricted to the
     # reviewed integration branch until its PR is merged.
-    if: ${{ github.ref == 'refs/heads/fix/shared-firebase-secure-pairing' && github.event.inputs.confirm_production == 'DEPLOY_RULES' }}
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/shared-firebase-secure-pairing') && github.event.inputs.confirm_production == 'DEPLOY_RULES' }}
     runs-on: ubuntu-latest
     env:
       FIREBASE_PROJECT_ID: gen-lang-client-0963224775

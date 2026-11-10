@@ -21,7 +21,6 @@ import com.example.data.local.CachedChildStateEntity
 import com.example.data.local.OfflineSyncQueueEntity
 import com.example.data.remote.AnchorRepository
 import com.example.model.AnchorScreen
-import com.example.model.AnchorSeedData
 import com.example.model.AppRule
 import com.example.model.ChildProfile
 import com.example.model.ChildRequest
@@ -57,37 +56,37 @@ data class AnchorUiState(
     val isCloudConnected: Boolean = false,
     val authLoading: Boolean = false,
     val statusBannerMessage: String? = null,
-    val currentUserUid: String = "local_guardian_sarah",
-    val guardianDisplayName: String = "Sarah Jenkins",
-    val guardianEmail: String = "sarah.jenkins@family.org",
-    val guardianRoleChip: String = "Mother",
+    val currentUserUid: String = "",
+    val guardianDisplayName: String = "Guardian",
+    val guardianEmail: String = "",
+    val guardianRoleChip: String = "Guardian",
     val notificationCadence: String = "All Safety & Requests",
-    val familyHousehold: FamilyHousehold = AnchorSeedData.defaultFamily("local_guardian_sarah"),
-    val children: List<ChildProfile> = AnchorSeedData.defaultChildren("local_guardian_sarah"),
-    val selectedChildId: String = "child_leo",
+    val familyHousehold: FamilyHousehold = FamilyHousehold(familyName = "My Family"),
+    val children: List<ChildProfile> = emptyList(),
+    val selectedChildId: String = "",
     val pairingCode: PairingCode = PairingCode(
-        id = "pair_leo_1",
-        codeId = "pair_leo_1",
-        familyId = "fam_local_guardian_sarah",
-        ownerUid = "local_guardian_sarah",
-        childId = "child_leo",
-        childName = "Leo",
-        code = "482-915",
-        expiresAtEpochMs = System.currentTimeMillis() + 600_000L,
-        status = "ACTIVE",
+        id = "",
+        codeId = "",
+        familyId = "",
+        ownerUid = "",
+        childId = "",
+        childName = "",
+        code = "",
+        expiresAtEpochMs = 0L,
+        status = "NONE",
         revoked = false
     ),
     val pairedDevices: List<PairedDevice> = emptyList(),
-    val pairingCountdownSeconds: Int = 584,
-    val appRules: List<AppRule> = AnchorSeedData.defaultAppRules("local_guardian_sarah"),
-    val schedules: List<ScheduleRoutine> = AnchorSeedData.defaultSchedules("local_guardian_sarah"),
-    val geofences: List<SafeGeofence> = AnchorSeedData.defaultGeofences("local_guardian_sarah"),
-    val alerts: List<SafetyAlert> = AnchorSeedData.defaultAlerts("local_guardian_sarah"),
-    val requests: List<ChildRequest> = AnchorSeedData.defaultRequests("local_guardian_sarah"),
-    val messages: List<FamilyMessage> = AnchorSeedData.defaultMessages("local_guardian_sarah"),
-    val tasks: List<FamilyTask> = AnchorSeedData.defaultTasks("local_guardian_sarah"),
-    val guardians: List<GuardianContact> = AnchorSeedData.defaultGuardians("local_guardian_sarah"),
-    val premiumConfig: PremiumFilterConfig = AnchorSeedData.defaultPremiumConfig("local_guardian_sarah"),
+    val pairingCountdownSeconds: Int = 0,
+    val appRules: List<AppRule> = emptyList(),
+    val schedules: List<ScheduleRoutine> = emptyList(),
+    val geofences: List<SafeGeofence> = emptyList(),
+    val alerts: List<SafetyAlert> = emptyList(),
+    val requests: List<ChildRequest> = emptyList(),
+    val messages: List<FamilyMessage> = emptyList(),
+    val tasks: List<FamilyTask> = emptyList(),
+    val guardians: List<GuardianContact> = emptyList(),
+    val premiumConfig: PremiumFilterConfig = PremiumFilterConfig(),
     val auditLogs: List<CachedAuditLogEntity> = emptyList(),
     val pendingOfflineSyncCount: Int = 0,
     // Screen-specific interactive UI states
@@ -107,7 +106,31 @@ data class AnchorUiState(
     val lastSelfTestSummary: String = "Room SQLite Cache Ready • Sign in with Google for Cloud Firestore Verification"
 ) {
     val selectedChild: ChildProfile
-        get() = children.find { it.childId == selectedChildId } ?: children.first()
+        get() = children.find { it.childId == selectedChildId }
+            ?: children.firstOrNull()
+            ?: ChildProfile(
+                childId = "",
+                name = "No child added",
+                deviceName = "Not paired",
+                deviceModel = "Unavailable",
+                osVersion = "Unknown",
+                batteryLevel = 0,
+                chargingStatus = "Unknown",
+                networkType = "Offline",
+                networkName = "Unavailable",
+                storageFreeGb = 0.0,
+                syncStatus = "PENDING",
+                lastSyncLabel = "Add a child profile to get started",
+                usedMinutesToday = 0,
+                dailyAllowanceMinutes = 0,
+                currentMode = "Not configured",
+                locationLabel = "Location unavailable",
+                latitude = 0.0,
+                longitude = 0.0,
+                knoxVerified = false,
+                accessibilityEnabled = false,
+                deviceAdminEnabled = false
+            )
 
     val isPremiumActive: Boolean
         get() = familyHousehold.subscriptionActive && familyHousehold.subscriptionTier != "FREE"
@@ -165,8 +188,8 @@ class AnchorParentViewModel(
         if (currentUser != null) {
             onFirebaseUserAuthenticated(
                 uid = currentUser.uid,
-                displayName = currentUser.displayName ?: "Sarah Jenkins",
-                email = currentUser.email ?: "sarah.jenkins@family.org"
+                displayName = currentUser.displayName ?: "Guardian",
+                email = currentUser.email.orEmpty()
             )
         }
     }
@@ -213,8 +236,8 @@ class AnchorParentViewModel(
                     val user = result.user
                     onFirebaseUserAuthenticated(
                         uid = user.uid,
-                        displayName = user.displayName ?: "Sarah Jenkins",
-                        email = user.email ?: "sarah.jenkins@family.org"
+                        displayName = user.displayName ?: "Guardian",
+                        email = user.email.orEmpty()
                     )
                 }
                 is AuthResult.Cancelled -> {
@@ -242,28 +265,55 @@ class AnchorParentViewModel(
             val familyId = "fam_$uid"
             _uiState.update {
                 it.copy(
-                    authLoading = false,
-                    isSignedIn = true,
+                    authLoading = true,
+                    isSignedIn = false,
                     currentUserUid = uid,
                     guardianDisplayName = displayName,
                     guardianEmail = email,
-                    currentScreen = AnchorScreen.P04_FAMILY_DASHBOARD,
+                    currentScreen = AnchorScreen.P01_WELCOME_SIGN_IN,
+                    children = emptyList(),
+                    selectedChildId = "",
+                    appRules = emptyList(),
+                    schedules = emptyList(),
+                    geofences = emptyList(),
+                    alerts = emptyList(),
+                    requests = emptyList(),
+                    messages = emptyList(),
+                    tasks = emptyList(),
+                    guardians = emptyList(),
                     backStack = emptyList(),
                     statusBannerMessage = "Authenticating & verifying shared Firestore household ($familyId)..."
                 )
             }
             try {
                 val household = repository.bootstrapHouseholdIfNeeded(uid, displayName, email)
-                val children = repository.getChildren(familyId).ifEmpty {
-                    AnchorSeedData.defaultChildren(uid, familyId)
-                }
+                val children = repository.getChildren(familyId)
                 _uiState.update {
                     it.copy(
+                        authLoading = false,
+                        isSignedIn = true,
                         isCloudConnected = true,
                         familyHousehold = household,
                         children = children,
-                        selectedChildId = children.first().childId,
-                        statusBannerMessage = "Authenticated as $email • Shared Cloud Firestore Sync Verified",
+                        selectedChildId = children.firstOrNull()?.childId.orEmpty(),
+                        currentScreen = if (children.isEmpty()) {
+                            AnchorScreen.P02_FAMILY_ONBOARDING
+                        } else {
+                            AnchorScreen.P04_FAMILY_DASHBOARD
+                        },
+                        appRules = emptyList(),
+                        schedules = emptyList(),
+                        geofences = emptyList(),
+                        alerts = emptyList(),
+                        requests = emptyList(),
+                        messages = emptyList(),
+                        tasks = emptyList(),
+                        guardians = emptyList(),
+                        statusBannerMessage = if (children.isEmpty()) {
+                            "Welcome! Add your own child's profile before pairing a device."
+                        } else {
+                            "Authenticated as $email • Shared Cloud Firestore Sync Verified"
+                        },
                         lastSelfTestSummary = "All 4 Guardian Pipelines Verified (Shared Firestore DB Connected)"
                     )
                 }
@@ -276,11 +326,21 @@ class AnchorParentViewModel(
                     details = "Connected to household ${household.familyName} ($familyId)",
                     syncState = "ENFORCED"
                 )
+
+                // Register this signed-in Parent device for private, server-managed SOS push alerts.
+                // If the Worker is not configured yet, normal Firebase sign-in and Firestore sync still work.
+                try {
+                    repository.subscribeToSosNotifications(familyId)
+                } catch (_: Exception) {
+                    // Registration is retried on the next successful Parent authentication.
+                }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
+                        authLoading = false,
+                        isSignedIn = false,
                         isCloudConnected = false,
-                        statusBannerMessage = "Signed in ($email), but Firestore sync failed: ${e.localizedMessage ?: "Offline Room queue active"}"
+                        statusBannerMessage = "Cloud setup is not ready: ${e.localizedMessage ?: "Check Google sign-in and Firestore permissions"}"
                     )
                 }
             }
@@ -305,6 +365,42 @@ class AnchorParentViewModel(
             try {
                 repository.observePairedDevices(familyId).collect { devices ->
                     _uiState.update { it.copy(pairedDevices = devices) }
+                }
+            } catch (_: Exception) {}
+        }
+
+        realtimeListenerJobs += viewModelScope.launch {
+            try {
+                repository.observePairingCodes(familyId).collect { codes ->
+                    val currentCodeId = _uiState.value.pairingCode.codeId
+                    val serverCode = codes.firstOrNull { it.codeId == currentCodeId }
+                    if (serverCode != null && serverCode.status != _uiState.value.pairingCode.status) {
+                        _uiState.update { current ->
+                            if (current.pairingCode.codeId != serverCode.codeId) {
+                                current
+                            } else {
+                                current.copy(
+                                    pairingCode = current.pairingCode.copy(
+                                        status = serverCode.status,
+                                        revoked = serverCode.status == "REVOKED",
+                                        revokedAtEpochMs = serverCode.revokedAtEpochMs,
+                                        expiresAtEpochMs = serverCode.expiresAtEpochMs
+                                    ),
+                                    pairingCountdownSeconds = if (serverCode.status == "ACTIVE") {
+                                        current.pairingCountdownSeconds
+                                    } else {
+                                        0
+                                    },
+                                    statusBannerMessage = when (serverCode.status) {
+                                        "CONSUMED" -> "The Child device has completed secure pairing."
+                                        "REVOKED" -> "The pairing code was revoked."
+                                        "EXPIRED" -> "The pairing code expired. Generate a new one."
+                                        else -> current.statusBannerMessage
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             } catch (_: Exception) {}
         }
@@ -373,35 +469,15 @@ class AnchorParentViewModel(
         }
     }
 
-    fun enterGuardianWorkspace(startScreen: AnchorScreen = AnchorScreen.P04_FAMILY_DASHBOARD) {
-        val state = _uiState.value
-        _uiState.update {
-            it.copy(
-                isSignedIn = true,
-                currentScreen = startScreen,
-                backStack = emptyList(),
-                statusBannerMessage = if (it.isCloudConnected) {
-                    "Shared Cloud Firestore & Room Cache Active"
-                } else {
-                    "Local Room SQLite Sandbox Active (Sign in with Google on P-01 for Cloud Firestore sync)"
-                }
-            )
-        }
-        viewModelScope.launch {
-            syncChildrenToLocalRoom(state.children)
-            recordAuditLog(
-                eventCode = "#LOC-101",
-                actionTitle = "Entered Guardian Workspace",
-                details = "Active profile: ${state.guardianDisplayName} (${state.familyHousehold.familyName})",
-                syncState = if (state.isCloudConnected) "ENFORCED" else "LOCAL_ONLY"
-            )
-        }
-    }
-
     fun signOutGuardian(context: Context) {
         viewModelScope.launch {
             realtimeListenerJobs.forEach { it.cancel() }
             realtimeListenerJobs.clear()
+            try {
+                repository.unsubscribeFromSosNotifications(_uiState.value.familyHousehold.familyId)
+            } catch (_: Exception) {
+                // Firebase sign-out must still complete if the Worker is temporarily unavailable.
+            }
             authManager.signOut(context)
             _uiState.update {
                 it.copy(
@@ -457,19 +533,19 @@ class AnchorParentViewModel(
             gradeLabel = gradeLabel.ifBlank { "Student Profile" },
             avatarInitials = initials,
             deviceName = deviceName.ifBlank { "${name.trim()}'s Android Device" },
-            deviceModel = "Pending Pairing Handshake",
-            osVersion = "Android 14+",
-            batteryLevel = 100,
-            chargingStatus = "Ready to Pair",
-            networkType = "Wi-Fi",
-            networkName = "Household Network",
-            storageFreeGb = 64.0,
+            deviceModel = "Awaiting pairing",
+            osVersion = "Unknown",
+            batteryLevel = 0,
+            chargingStatus = "Unknown",
+            networkType = "Unknown",
+            networkName = "Not connected",
+            storageFreeGb = 0.0,
             syncStatus = "PENDING",
             lastSyncLabel = "Awaiting 6-Digit Pairing Code",
             usedMinutesToday = 0,
             dailyAllowanceMinutes = 120,
             currentMode = "Onboarding Setup",
-            locationLabel = "Home Sanctuary"
+            locationLabel = "Location unavailable"
         )
 
         val updatedChildren = state.children + newChild
@@ -518,70 +594,62 @@ class AnchorParentViewModel(
     fun generateNewPairingCode() {
         val state = _uiState.value
         val child = state.selectedChild
-        val newCodeStr = AndroidPlatformHelper.generateSecurePairingCode()
-        val nowMs = System.currentTimeMillis()
-        val codeId = "pair_${child.childId}_$nowMs"
-        val localPairing = PairingCode(
-            id = codeId,
-            codeId = codeId,
+        if (!state.isCloudConnected) {
+            postBannerMessage("Sign in and connect to Anchor Cloud before generating a verifiable pairing code.")
+            return
+        }
+
+        val pendingPairing = PairingCode(
+            id = "",
+            codeId = "",
             familyId = state.familyHousehold.familyId,
             ownerUid = state.currentUserUid,
             childId = child.childId,
             childName = child.name,
-            code = newCodeStr,
-            expiresAtEpochMs = nowMs + AnchorRepository.PAIRING_CODE_TTL_MS,
-            status = "ACTIVE",
+            code = "",
+            expiresAtEpochMs = 0L,
+            status = "PENDING",
             revoked = false,
             attemptCount = 0,
             maxAttempts = 5
         )
         _uiState.update {
             it.copy(
-                pairingCode = localPairing,
-                pairingCountdownSeconds = 600,
-                statusBannerMessage = if (state.isCloudConnected) {
-                    "Generating & registering secure 10-minute pairing code for ${child.name}..."
-                } else {
-                    "Generated local 10-minute pairing code $newCodeStr for ${child.name} (Sign in for Cloud Verification)"
-                }
+                pairingCode = pendingPairing,
+                pairingCountdownSeconds = 0,
+                statusBannerMessage = "Requesting a server-verified 10-minute pairing code for ${child.name}..."
             )
         }
+
         viewModelScope.launch {
-            if (state.isCloudConnected) {
-                try {
-                    val cloudPairing = repository.createPairingCode(
-                        familyId = state.familyHousehold.familyId,
-                        ownerUid = state.currentUserUid,
-                        childId = child.childId,
-                        childName = child.name
+            try {
+                val cloudPairing = repository.createPairingCode(
+                    familyId = state.familyHousehold.familyId,
+                    ownerUid = state.currentUserUid,
+                    childId = child.childId,
+                    childName = child.name
+                )
+                _uiState.update {
+                    it.copy(
+                        pairingCode = cloudPairing,
+                        pairingCountdownSeconds = 600,
+                        statusBannerMessage = "Generated secure 10-minute pairing code ${cloudPairing.code} for ${child.name}"
                     )
-                    _uiState.update {
-                        it.copy(
-                            pairingCode = cloudPairing,
-                            pairingCountdownSeconds = 600,
-                            statusBannerMessage = "Generated cloud-verified 10-minute pairing code ${cloudPairing.code} for ${child.name}"
-                        )
-                    }
-                    recordAuditLog(
-                        eventCode = "#PAIR-301",
-                        actionTitle = "Generated Pairing Code (${cloudPairing.code})",
-                        details = "Target child: ${child.name} • Valid for 10 minutes • Prior codes revoked",
-                        syncState = "ENFORCED"
-                    )
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(
-                            statusBannerMessage = "Cloud pairing code registration failed: ${e.localizedMessage ?: "Saved locally"}"
-                        )
-                    }
                 }
-            } else {
                 recordAuditLog(
                     eventCode = "#PAIR-301",
-                    actionTitle = "Generated Local Pairing Code ($newCodeStr)",
-                    details = "Target child: ${child.name} • Valid for 10 minutes (Local Sandbox)",
-                    syncState = "LOCAL_ONLY"
+                    actionTitle = "Generated Pairing Code",
+                    details = "Target child: ${child.name} • Valid for 10 minutes • Prior codes revoked by server",
+                    syncState = "ENFORCED"
                 )
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        pairingCode = pendingPairing.copy(status = "FAILED"),
+                        pairingCountdownSeconds = 0,
+                        statusBannerMessage = "Secure pairing code generation failed: ${e.localizedMessage ?: "Please retry."}"
+                    )
+                }
             }
         }
     }
@@ -589,59 +657,92 @@ class AnchorParentViewModel(
     fun revokeCurrentPairingCode() {
         val state = _uiState.value
         val currentCode = state.pairingCode
-        if (currentCode.status == "REVOKED" || currentCode.revoked) {
-            postBannerMessage("Pairing code ${currentCode.code} is already revoked.")
+        if (currentCode.codeId.isBlank() || currentCode.status != "ACTIVE" || currentCode.revoked) {
+            postBannerMessage("There is no active server-issued pairing code to revoke.")
             return
         }
-        val revokedCode = currentCode.copy(
-            status = "REVOKED",
-            revoked = true,
-            revokedAtEpochMs = System.currentTimeMillis()
-        )
-        _uiState.update {
-            it.copy(
-                pairingCode = revokedCode,
-                pairingCountdownSeconds = 0,
-                statusBannerMessage = "Revoked pairing code ${currentCode.code} for ${state.selectedChild.name}"
-            )
+        if (!state.isCloudConnected) {
+            postBannerMessage("Connect to Anchor Cloud to revoke this pairing code on the server.")
+            return
         }
+
         viewModelScope.launch {
-            if (state.isCloudConnected) {
-                try {
-                    repository.revokePairingCode(
-                        familyId = state.familyHousehold.familyId,
-                        codeId = currentCode.codeId
+            try {
+                repository.revokePairingCode(
+                    familyId = state.familyHousehold.familyId,
+                    codeId = currentCode.codeId
+                )
+                _uiState.update {
+                    it.copy(
+                        pairingCode = currentCode.copy(
+                            status = "REVOKED",
+                            revoked = true,
+                            revokedAtEpochMs = System.currentTimeMillis()
+                        ),
+                        pairingCountdownSeconds = 0,
+                        statusBannerMessage = "Revoked pairing code for ${state.selectedChild.name}"
                     )
-                    recordAuditLog(
-                        eventCode = "#PAIR-309",
-                        actionTitle = "Revoked Pairing Code (${currentCode.code})",
-                        details = "Code immediately invalidated in Cloud Firestore",
-                        syncState = "ENFORCED"
-                    )
-                } catch (e: Exception) {
-                    postBannerMessage("Revoked locally; cloud update error: ${e.localizedMessage}")
                 }
-            } else {
                 recordAuditLog(
                     eventCode = "#PAIR-309",
-                    actionTitle = "Revoked Pairing Code (${currentCode.code})",
-                    details = "Invalidated in local session",
-                    syncState = "LOCAL_ONLY"
+                    actionTitle = "Revoked Pairing Code",
+                    details = "Pairing code invalidated by the trusted server",
+                    syncState = "ENFORCED"
                 )
+            } catch (e: Exception) {
+                postBannerMessage("Could not revoke pairing code on the server: ${e.localizedMessage ?: "Please retry."}")
+            }
+        }
+    }
+
+    fun unpairPairedChildDevice(deviceUid: String) {
+        val state = _uiState.value
+        if (!state.isCloudConnected) {
+            postBannerMessage("Connect to Anchor Cloud before unpairing a Child device.")
+            return
+        }
+        val pairedDevice = state.pairedDevices.firstOrNull { it.deviceId == deviceUid }
+        if (pairedDevice == null) {
+            postBannerMessage("That paired device is no longer in this family.")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                repository.unpairChildDevice(
+                    familyId = state.familyHousehold.familyId,
+                    deviceUid = deviceUid
+                )
+                recordAuditLog(
+                    eventCode = "#PAIR-310",
+                    actionTitle = "Unpaired Child Device",
+                    details = "Unpaired device for ${pairedDevice.childName.ifBlank { "Child" }} through the trusted server",
+                    syncState = "ENFORCED"
+                )
+                postBannerMessage("Unpaired ${pairedDevice.childName.ifBlank { "Child" }}'s device. It must use a new Parent-issued code to reconnect.")
+            } catch (e: Exception) {
+                postBannerMessage("Could not unpair this device: ${e.localizedMessage ?: "Please retry."}")
             }
         }
     }
 
     fun copyPairingCodeToClipboard(context: Context) {
-        val code = _uiState.value.pairingCode.code
+        val pairing = _uiState.value.pairingCode
+        if (pairing.status != "ACTIVE" || pairing.code.isBlank()) {
+            postBannerMessage("Generate a valid server-verified pairing code before copying.")
+            return
+        }
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Anchor Pairing Code", code))
-        postBannerMessage("Copied pairing code $code to clipboard")
+        clipboard?.setPrimaryClip(ClipData.newPlainText("Anchor Pairing Code", pairing.code))
+        postBannerMessage("Copied pairing code ${pairing.code} to clipboard")
     }
 
     fun sharePairingInstructions(context: Context) {
         val state = _uiState.value
         val child = state.selectedChild
+        if (state.pairingCode.status != "ACTIVE" || state.pairingCode.code.isBlank()) {
+            postBannerMessage("Generate a valid server-verified pairing code before sharing.")
+            return
+        }
         val shareText = buildString {
             appendLine("Anchor Family Guardian — Child Device Pairing")
             appendLine("Household: ${state.familyHousehold.familyName} (${state.familyHousehold.familyId})")
@@ -1737,22 +1838,23 @@ class AnchorParentViewModel(
     // P-15: Premium Features & Subscription Entitlement
     // ===============================================================
     fun setSubscriptionTier(tier: String, active: Boolean) {
-        val current = _uiState.value.familyHousehold
-        val updated = current.copy(
-            subscriptionTier = tier,
-            subscriptionActive = active
-        )
+        // Client-side billing is NEVER an entitlement authority.
+        // Google Play purchase tokens must be verified by a trusted backend before
+        // subscriptionTier/subscriptionActive are changed in Firestore.
+        val plan = when (tier) {
+            "PREMIUM_ANNUAL" -> "Annual"
+            "PREMIUM_MONTHLY" -> "Monthly"
+            else -> "Free"
+        }
         _uiState.update {
             it.copy(
-                familyHousehold = updated,
                 statusBannerMessage = if (active) {
-                    "Anchor Family Premium ($tier) Active — All 6 Premium Safeguard Groups Unlocked"
+                    "$plan Premium purchase is not available yet. A verified Google Play purchase is required; no features were unlocked."
                 } else {
-                    "Switched to Free Core Tier — The 6 Premium feature groups now show upgrade paywalls"
+                    "Manage or cancel a verified Premium subscription through Google Play. Your current entitlement was not changed."
                 }
             )
         }
-        persistFamilyWithSyncStatus(updated, "Updated Subscription Entitlement: $tier")
     }
 
     // ===============================================================
@@ -1984,9 +2086,9 @@ class AnchorParentViewModel(
             }
             val queueCount = localDao.getPendingOfflineSyncItems().size
             val summary = if (state.isCloudConnected) {
-                "Self-Test Passed at $timestamp • Shared Firestore DB (ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e), Room SQLite ($queueCount queued), GPS & Notification Channels Nominal"
+                "Self-Test Passed at $timestamp • Shared Firestore DB (ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d), Room SQLite ($queueCount queued), GPS & Notification Channels Nominal"
             } else {
-                "Self-Test Passed at $timestamp • Room SQLite ($queueCount queued items ready for sync), GPS & Notification Channels Nominal (Sign in on P-01 for Cloud Firestore)"
+                "Self-Test Passed at $timestamp • Room SQLite ($queueCount queued items ready for sync), GPS & Notification Channels Nominal (Sign in to sync with Cloud Firestore)"
             }
             _uiState.update {
                 it.copy(
@@ -2089,7 +2191,7 @@ class AnchorParentViewModel(
             appendLine("=== ANCHOR PARENT CRYPTOGRAPHIC DIAGNOSTIC LOG BUNDLE ===")
             appendLine("Application ID: com.anchor.parent")
             appendLine("Shared Firebase Project: gen-lang-client-0963224775")
-            appendLine("Shared Firestore Database: ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e")
+            appendLine("Shared Firestore Database: ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d")
             appendLine("Household: ${state.familyHousehold.familyName} (${state.familyHousehold.familyId})")
             appendLine("Cloud Firestore Connected: ${state.isCloudConnected}")
             appendLine("Pending Offline Sync Queue Items: ${state.pendingOfflineSyncCount}")

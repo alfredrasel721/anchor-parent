@@ -147,7 +147,7 @@ fun P18NotificationFilterScreen(
                                     config.blockGamingStreakPrompts
                                 )
                             },
-                            label = { Text(proto.replace("_", " ")) },
+                            label = { Text(proto.replace("_", "")) },
                             modifier = Modifier.testTag("notif_proto_$proto")
                         )
                     }
@@ -314,7 +314,7 @@ fun P19LiveSessionViewerScreen(
                 ) {
                     Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(mode.substringBefore(" "), style = MaterialTheme.typography.labelSmall)
+                    Text(mode.substringBefore(""), style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -490,13 +490,13 @@ fun P20AccountSettingsDiagnosticsScreen(
                         onClick = { onNavigate(AnchorScreen.P15_PREMIUM_FEATURES) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Subscription (P-15)")
+                        Text("Subscription")
                     }
                     OutlinedButton(
                         onClick = { onNavigate(AnchorScreen.P14_PRIVACY_EXPORT_DELETION) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Privacy & Data (P-14)")
+                        Text("Privacy & Data")
                     }
                 }
             }

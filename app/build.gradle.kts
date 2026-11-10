@@ -111,6 +111,7 @@ dependencies {
   // implementation(libs.firebase.ai)
   // Uncomment to use Firestore:
   implementation(libs.firebase.firestore)
+  implementation(libs.firebase.messaging)
 
   // Uncomment ALL FOUR of the following dependencies together to use Firebase Auth and Google
   // Sign-In via Credential Manager:
@@ -120,6 +121,7 @@ dependencies {
   implementation(libs.googleid)
   implementation(libs.firebase.appcheck.recaptcha)
   implementation(libs.firebase.appcheck.debug)
+  implementation(libs.firebase.appcheck.playintegrity)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
   // implementation(libs.logging.interceptor)
@@ -151,4 +153,53 @@ tasks.withType<Test>().configureEach {
     "robolectric.dependency.repo.url",
     "https://maven-central.storage-download.googleapis.com/maven2/"
   )
+}
+
+
+// Prevent accidental release APKs that contain a placeholder Firebase configuration
+// or are signed with missing/incorrect release credentials.
+val validateReleaseFirebaseAndSigningInputs by tasks.registering {
+  doLast {
+    val googleServicesFile = file("google-services.json")
+    if (!googleServicesFile.isFile) {
+      throw GradleException("Release build blocked: add the Firebase Console google-services.json for com.anchor.parent to app/google-services.json.")
+    }
+
+    val googleServices = groovy.json.JsonSlurper().parse(googleServicesFile) as Map<*, *>
+    val projectInfo = googleServices["project_info"] as? Map<*, *>
+    val clients = googleServices["client"] as? List<*>
+    val hasMatchingAndroidApp = clients.orEmpty().any { item ->
+      val client = item as? Map<*, *>
+      val clientInfo = client?.get("client_info") as? Map<*, *>
+      val androidInfo = clientInfo?.get("android_client_info") as? Map<*, *>
+      val appId = clientInfo?.get("mobilesdk_app_id") as? String
+      androidInfo?.get("package_name") == "com.anchor.parent" && appId?.startsWith("1:") == true
+    }
+    val hasWebOAuthClient = clients.orEmpty().any { item ->
+      val client = item as? Map<*, *>
+      val oauthClients = client?.get("oauth_client") as? List<*>
+      oauthClients.orEmpty().any { oauth ->
+        val oauthClient = oauth as? Map<*, *>
+        oauthClient?.get("client_type")?.toString() == "3"
+      }
+    }
+    if ((projectInfo?.get("project_id") as? String).isNullOrBlank() || !hasMatchingAndroidApp) {
+      throw GradleException("Release build blocked: google-services.json must contain a Firebase project ID and the Android package com.anchor.parent.")
+    }
+    if (!hasWebOAuthClient) {
+      throw GradleException("Release build blocked: configure the Web OAuth client for Google sign-in and re-download google-services.json.")
+    }
+
+    val keyStorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+    if (!file(keyStorePath).isFile) {
+      throw GradleException("Release build blocked: provide the existing release upload keystore through KEYSTORE_PATH.")
+    }
+    if (System.getenv("STORE_PASSWORD").isNullOrBlank() || System.getenv("KEY_PASSWORD").isNullOrBlank()) {
+      throw GradleException("Release build blocked: STORE_PASSWORD and KEY_PASSWORD must be configured securely.")
+    }
+  }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+  dependsOn(validateReleaseFirebaseAndSigningInputs)
 }

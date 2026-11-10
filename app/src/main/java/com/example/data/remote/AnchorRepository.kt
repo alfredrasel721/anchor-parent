@@ -2,7 +2,6 @@ package com.example.data.remote
 
 import android.content.Context
 import com.example.R
-import com.example.model.AnchorSeedData
 import com.example.model.AppRule
 import com.example.model.ChildProfile
 import com.example.model.ChildRequest
@@ -21,6 +20,7 @@ import com.example.model.UserProfile
 import com.example.util.AndroidPlatformHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -109,151 +109,109 @@ class AnchorRepository(
         childId: String,
         childName: String
     ): PairingCode {
-        val nowMs = System.currentTimeMillis()
-        val secureCode = AndroidPlatformHelper.generateSecurePairingCode()
-        val codeId = "pair_${childId}_$nowMs"
-        val newCode = PairingCode(
-            id = codeId,
-            codeId = codeId,
-            familyId = familyId,
-            ownerUid = ownerUid,
-            childId = childId,
-            childName = childName,
-            code = secureCode,
-            expiresAtEpochMs = nowMs + PAIRING_CODE_TTL_MS,
-            status = "ACTIVE",
+        require(auth.currentUser?.uid == ownerUid) { "Sign in as the family owner before generating a pairing code." }
+        val data = AnchorWorkerApi.post(
+            auth,
+            "pairing/create",
+            mapOf(
+                "familyId" to familyId,
+                "childId" to childId,
+                "childName" to childName
+            )
+        )
+        return PairingCode(
+            id = data.optString("codeId"),
+            codeId = data.optString("codeId"),
+            familyId = data.optString("familyId", familyId),
+            ownerUid = data.optString("ownerUid", ownerUid),
+            childId = data.optString("childId", childId),
+            childName = data.optString("childName", childName),
+            code = data.optString("code"),
+            expiresAtEpochMs = data.optLong("expiresAtEpochMs"),
+            status = data.optString("status", "ACTIVE"),
             revoked = false,
             attemptCount = 0,
             maxAttempts = 5
         )
-        val collectionPath = "families/$familyId/pairingCodes"
-        try {
-            val existingSnap = db.collection(collectionPath)
-                .whereEqualTo("childId", childId)
-                .whereEqualTo("status", "ACTIVE")
-                .get()
-                .await()
-            val batch = db.batch()
-            for (doc in existingSnap.documents) {
-                batch.update(
-                    doc.reference,
-                    mapOf(
-                        "status" to "REVOKED",
-                        "revoked" to true,
-                        "revokedAtEpochMs" to nowMs
-                    )
-                )
-            }
-            batch.set(db.document("$collectionPath/$codeId"), newCode)
-            batch.commit().await()
-            return newCode
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.WRITE, "$collectionPath/$codeId")
-            throw e
-        }
     }
 
     suspend fun revokePairingCode(familyId: String, codeId: String) {
-        val path = "families/$familyId/pairingCodes/$codeId"
-        try {
-            db.document(path).update(
-                mapOf(
-                    "status" to "REVOKED",
-                    "revoked" to true,
-                    "revokedAtEpochMs" to System.currentTimeMillis()
-                )
-            ).await()
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.UPDATE, path)
-        }
+        require(auth.currentUser != null) { "Sign in before revoking a pairing code." }
+        AnchorWorkerApi.post(auth, "pairing/revoke", mapOf("familyId" to familyId, "codeId" to codeId))
     }
 
-    suspend fun upsertPairingCode(pairingCode: PairingCode) {
-        val path = "families/${pairingCode.familyId}/pairingCodes/${pairingCode.codeId}"
-        try {
-            db.document(path).set(pairingCode).await()
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.WRITE, path)
-        }
+    suspend fun unpairChildDevice(familyId: String, deviceUid: String) {
+        require(auth.currentUser != null) { "Sign in before unpairing a Child device." }
+        require(deviceUid.isNotBlank()) { "A Child device ID is required." }
+        AnchorWorkerApi.post(auth, "pairing/revoke", mapOf("familyId" to familyId, "deviceUid" to deviceUid))
+    }
+
+    suspend fun subscribeToSosNotifications(familyId: String) {
+        require(auth.currentUser != null) { "Sign in before registering SOS notifications." }
+        val response = AnchorWorkerApi.post(auth, "notifications/topic", mapOf("familyId" to familyId))
+        val topic = response.optString("topic")
+        require(topic.isNotBlank()) { "SOS notification registration returned an empty topic." }
+        FirebaseMessaging.getInstance().subscribeToTopic(topic).await()
+    }
+
+    suspend fun unsubscribeFromSosNotifications(familyId: String) {
+        if (auth.currentUser == null || familyId.isBlank()) return
+        val response = AnchorWorkerApi.post(auth, "notifications/topic", mapOf("familyId" to familyId))
+        val topic = response.optString("topic")
+        if (topic.isNotBlank()) FirebaseMessaging.getInstance().unsubscribeFromTopic(topic).await()
     }
 
     /**
-     * Verifies and atomically consumes a one-time pairing code on behalf of an authenticated Child device,
-     * registering `families/{familyId}/pairedDevices/{childUid}` and marking the code `CONSUMED`.
+     * Pairing documents are server-managed. Keeping this method prevents old callers
+     * from silently writing raw pairing secrets to Firestore.
      */
+    @Suppress("UNUSED_PARAMETER")
+    suspend fun upsertPairingCode(pairingCode: PairingCode) {
+        throw UnsupportedOperationException("Pairing codes can only be created by the trusted pairing service.")
+    }
+
+    @Suppress("UNUSED_PARAMETER")
     suspend fun redeemPairingCode(
         familyId: String,
         codeId: String,
         enteredCode: String,
         childUid: String = auth.currentUser?.uid ?: "",
-        deviceName: String = "Galaxy A54 5G",
-        deviceModel: String = "Samsung SM-A546U",
-        osVersion: String = "Android 14"
+        deviceName: String = "Android Child Device",
+        deviceModel: String = "Android",
+        osVersion: String = "Android"
     ): PairedDevice {
-        val normalized = AndroidPlatformHelper.normalizePairingCode(enteredCode)
-            ?: throw IllegalArgumentException("Pairing code must be 6 digits (e.g., 482-915).")
-        val codePath = "families/$familyId/pairingCodes/$codeId"
-        val pairedPath = "families/$familyId/pairedDevices/$childUid"
-        val nowMs = System.currentTimeMillis()
-
-        try {
-            val codeSnap = db.document(codePath).get().await()
-            val codeObj = codeSnap.toObject(PairingCode::class.java)
-                ?: throw IllegalStateException("Pairing code not found.")
-
-            if (codeObj.revoked || codeObj.status == "REVOKED") {
-                throw SecurityException("This pairing code was revoked by the parent.")
-            }
-            if (codeObj.status == "CONSUMED") {
-                throw SecurityException("This pairing code has already been consumed.")
-            }
-            if (nowMs >= codeObj.expiresAtEpochMs) {
-                throw SecurityException("This pairing code has expired (10-minute window elapsed).")
-            }
-            if (codeObj.code != normalized) {
-                throw SecurityException("Invalid pairing code.")
-            }
-
-            val pairedDevice = PairedDevice(
-                id = childUid,
-                deviceId = childUid,
-                childUid = childUid,
-                familyId = familyId,
-                ownerUid = codeObj.ownerUid,
-                childId = codeObj.childId,
-                childName = codeObj.childName.ifBlank { "Child" },
-                codeId = codeId,
-                redeemedCode = normalized,
-                deviceName = deviceName,
-                deviceModel = deviceModel,
-                osVersion = osVersion,
-                status = "PAIRED",
-                pairedAtEpochMs = nowMs,
-                lastHeartbeatEpochMs = nowMs
-            )
-
-            // Execute atomic batch so pairedDevices creation validates against the active pairingCode,
-            // and pairingCode is simultaneously marked CONSUMED to prevent reuse.
-            val batch = db.batch()
-            batch.set(db.document(pairedPath), pairedDevice)
-            batch.update(
-                db.document(codePath),
-                mapOf(
-                    "status" to "CONSUMED",
-                    "consumedByChildUid" to childUid,
-                    "consumedAtEpochMs" to nowMs
-                )
-            )
-            batch.commit().await()
-            return pairedDevice
-        } catch (e: SecurityException) {
-            throw e
-        } catch (e: IllegalArgumentException) {
-            throw e
-        } catch (e: Exception) {
-            handleFirestoreError(e, OperationType.WRITE, pairedPath)
-            throw e
+        require(auth.currentUser?.uid == childUid && childUid.isNotBlank()) {
+            "Sign in on the Child device before redeeming a pairing code."
         }
+        val digits = AndroidPlatformHelper.normalizePairingCode(enteredCode)
+            ?: throw IllegalArgumentException("Pairing code must contain six digits.")
+        val data = AnchorWorkerApi.post(
+            auth,
+            "pairing/redeem",
+            mapOf(
+                "code" to digits,
+                "deviceName" to deviceName,
+                "deviceModel" to deviceModel,
+                "osVersion" to osVersion
+            )
+        )
+        return PairedDevice(
+            id = data.optString("deviceId", childUid),
+            deviceId = data.optString("deviceId", childUid),
+            childUid = data.optString("deviceId", childUid),
+            familyId = data.optString("familyId", familyId),
+            ownerUid = data.optString("ownerUid"),
+            childId = data.optString("childId"),
+            childName = data.optString("childName"),
+            codeId = data.optString("codeId", codeId),
+            redeemedCode = "",
+            deviceName = deviceName,
+            deviceModel = deviceModel,
+            osVersion = osVersion,
+            status = "PAIRED",
+            pairedAtEpochMs = data.optLong("pairedAtEpochMs", System.currentTimeMillis()),
+            lastHeartbeatEpochMs = System.currentTimeMillis()
+        )
     }
 
     suspend fun getPairedDevices(familyId: String): List<PairedDevice> {
@@ -525,6 +483,20 @@ class AnchorRepository(
         awaitClose { registration.remove() }
     }
 
+    fun observePairingCodes(familyId: String): Flow<List<PairingCode>> = callbackFlow {
+        val path = "families/$familyId/pairingCodes"
+        val registration = db.collection(path).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                trySend(snapshot.toObjects(PairingCode::class.java))
+            }
+        }
+        awaitClose { registration.remove() }
+    }
+
     fun observePairedDevices(familyId: String): Flow<List<PairedDevice>> = callbackFlow {
         val path = "families/$familyId/pairedDevices"
         val registration = db.collection(path).addSnapshotListener { snapshot, error ->
@@ -674,6 +646,8 @@ class AnchorRepository(
         displayName: String,
         email: String
     ): FamilyHousehold {
+        require(uid.isNotBlank()) { "A verified Firebase user ID is required." }
+        require(email.isNotBlank()) { "A verified Google account email is required." }
         val familyId = "fam_$uid"
         val existingUser = getUserProfile(uid)
         if (existingUser == null) {
@@ -681,8 +655,8 @@ class AnchorRepository(
                 UserProfile(
                     id = uid,
                     uid = uid,
-                    displayName = displayName.ifBlank { "Sarah Jenkins" },
-                    email = email.ifBlank { "sarah.jenkins@family.org" },
+                    displayName = displayName.ifBlank { "Guardian" },
+                    email = email,
                     role = "PRIMARY_GUARDIAN",
                     familyId = familyId,
                     notificationCadence = "ALL_EVENTS"
@@ -690,22 +664,21 @@ class AnchorRepository(
             )
         }
         val existingFamily = getFamilyHousehold(familyId)
-        if (existingFamily != null) {
-            return existingFamily
-        }
+        if (existingFamily != null) return existingFamily
 
-        val seededFamily = AnchorSeedData.defaultFamily(uid, familyId)
-        upsertFamilyHousehold(seededFamily)
-        AnchorSeedData.defaultChildren(uid, familyId).forEach { upsertChildProfile(it) }
-        AnchorSeedData.defaultAppRules(uid, familyId, "child_leo").forEach { upsertAppRule(it) }
-        AnchorSeedData.defaultSchedules(uid, familyId, "child_leo").forEach { upsertScheduleRoutine(it) }
-        AnchorSeedData.defaultGeofences(uid, familyId, "child_leo").forEach { upsertSafeGeofence(it) }
-        AnchorSeedData.defaultAlerts(uid, familyId).forEach { upsertSafetyAlert(it) }
-        AnchorSeedData.defaultRequests(uid, familyId).forEach { upsertChildRequest(it) }
-        AnchorSeedData.defaultMessages(uid, familyId).forEach { upsertFamilyMessage(it) }
-        AnchorSeedData.defaultTasks(uid, familyId).forEach { upsertFamilyTask(it) }
-        AnchorSeedData.defaultGuardians(uid, familyId).forEach { upsertGuardianContact(it) }
-        upsertPremiumConfig(AnchorSeedData.defaultPremiumConfig(uid, familyId, "child_leo"))
-        return seededFamily
+        // Never create fake children, geographic locations, SOS alerts, guardian
+        // contacts, rules, or simulated messages for a real signed-in household.
+        // A parent must enter their own child profile in the onboarding screen.
+        val household = FamilyHousehold(
+            id = familyId,
+            familyId = familyId,
+            familyName = "My Family",
+            ownerUid = uid,
+            subscriptionTier = "FREE",
+            subscriptionActive = false
+        )
+        upsertFamilyHousehold(household)
+        return household
     }
+
 }
