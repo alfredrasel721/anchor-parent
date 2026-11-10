@@ -140,7 +140,28 @@ jobs:
             console.log("Database type: " + (database.type || "not reported"));
             console.log("Firestore freeTier: " + String(database.freeTier));
             if (database.freeTier !== true) {
-              console.error("This database is not confirmed as free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");
+              console.error("The configured database is NOT free-tier eligible. Do not deploy the Worker backend against it while the project remains on Spark.");
+              console.log("Looking for another Firestore database that may qualify for Spark...");
+              const listResponse = await fetch(
+                "https://firestore.googleapis.com/v1/projects/" +
+                  encodeURIComponent(process.env.FIREBASE_PROJECT_ID) + "/databases",
+                { headers: { authorization: "Bearer " + accessToken } }
+              );
+              if (listResponse.ok) {
+                const list = await listResponse.json();
+                const databases = list.databases ?? [];
+                if (databases.length === 0) console.log("No databases were returned.");
+                for (const item of databases) {
+                  const id = String(item.name ?? "").split("/").pop();
+                  console.log("Detected database: " + id +
+                    " | freeTier: " + String(item.freeTier) +
+                    " | location: " + String(item.locationId ?? "unknown") +
+                    " | type: " + String(item.type ?? "unknown"));
+                }
+              } else {
+                console.log("Could not list databases (HTTP " + listResponse.status +
+                  "). The account may need additional read-only metadata permissions.");
+              }
               process.exitCode = 1;
             } else {
               console.log("Firestore database metadata confirms free-tier eligibility.");
