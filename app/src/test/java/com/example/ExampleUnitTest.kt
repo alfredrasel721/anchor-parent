@@ -1,7 +1,6 @@
 package com.example
 
 import com.example.model.AnchorScreen
-import com.example.model.AnchorSeedData
 import com.example.util.AndroidPlatformHelper
 import com.example.viewmodel.AnchorUiState
 import org.junit.Assert.assertEquals
@@ -32,22 +31,14 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun seedData_populatesCompleteJenkinsHouseholdWithChildrenRulesAndGeofences() {
-        val uid = "guardian_test_uid"
-        val family = AnchorSeedData.defaultFamily(uid)
-        val children = AnchorSeedData.defaultChildren(uid)
-        val rules = AnchorSeedData.defaultAppRules(uid)
-        val schedules = AnchorSeedData.defaultSchedules(uid)
-        val geofences = AnchorSeedData.defaultGeofences(uid)
-        val requests = AnchorSeedData.defaultRequests(uid)
+    fun freshParentStateDoesNotLoadSampleFamilyDataBeforeAuthentication() {
+        val state = AnchorUiState()
 
-        assertEquals("The Jenkins Family", family.familyName)
-        assertEquals(2, children.size)
-        assertEquals("Leo", children.first().name)
-        assertTrue(rules.isNotEmpty())
-        assertEquals(3, schedules.size)
-        assertEquals(3, geofences.size)
-        assertEquals(2, requests.count { it.status == "PENDING" })
+        assertTrue(state.children.isEmpty())
+        assertTrue(state.appRules.isEmpty())
+        assertEquals("", state.currentUserUid)
+        assertEquals("", state.pairingCode.code)
+        assertEquals("My Family", state.familyHousehold.familyName)
     }
 
     @Test
