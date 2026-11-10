@@ -215,10 +215,10 @@ fun P15PremiumFeaturesScreen(
                             .testTag("select_annual_plan_card")
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            Text("BEST VALUE • SAVE 37%", style = MaterialTheme.typography.labelSmall, color = AnchorSecondary)
+                            Text("Annual plan", style = MaterialTheme.typography.labelSmall, color = AnchorSecondary)
                             Text("Annual Family", style = MaterialTheme.typography.titleMedium)
-                            Text("$4.99 / mo", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
-                            Text("Billed $59.99/yr • Up to 5 children", style = MaterialTheme.typography.bodySmall)
+                            Text("Pricing shown in Google Play", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
+                            Text("Final price and terms at checkout", style = MaterialTheme.typography.bodySmall)
                         }
                     }
 
@@ -239,8 +239,8 @@ fun P15PremiumFeaturesScreen(
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text("FLEXIBLE", style = MaterialTheme.typography.labelSmall)
                             Text("Monthly Plan", style = MaterialTheme.typography.titleMedium)
-                            Text("$7.99 / mo", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
-                            Text("Cancel anytime • Up to 5 children", style = MaterialTheme.typography.bodySmall)
+                            Text("Pricing shown in Google Play", style = MaterialTheme.typography.headlineSmall, color = AnchorPrimary)
+                            Text("Final price and terms at checkout", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -255,7 +255,7 @@ fun P15PremiumFeaturesScreen(
                 ) {
                     Text(
                         if (state.isPremiumActive) "Update Active Plan ($selectedPlan)"
-                        else "Start 14-Day Free Trial & Unlock All 6 Premium Groups"
+                        else "Check Premium purchase availability"
                     )
                 }
 
@@ -266,12 +266,12 @@ fun P15PremiumFeaturesScreen(
                             .fillMaxWidth()
                             .testTag("revert_to_free_tier_btn")
                     ) {
-                        Text("Switch Back to Free Core Tier (Test Paywall Gating)")
+                        Text("Manage subscription in Google Play")
                     }
                 }
 
                 Text(
-                    text = "Environment Note: Subscription state is persisted in Firebase Firestore (`families/{familyId}`) and local Room storage. Live Google Play Billing merchant settlement requires a Play Console release build.",
+                    text = "Premium is unlocked only after a Google Play purchase is verified by the server. Billing is not configured yet; this screen does not activate any paid feature.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
