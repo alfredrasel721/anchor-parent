@@ -50,14 +50,15 @@ The Parent repository's GitHub secret `FIREBASE_SERVICE_ACCOUNT` is used for the
 
 ## Add the Worker secret in Cloudflare
 
-The production Worker `anchor-family-api` has been deployed and its `workers.dev` subdomain enabled; the health route can be smoke-tested. The Firebase service-account secret has **not** yet been configured in the Worker, so privileged pairing/SOS endpoints are intentionally unavailable. Add the secret in the Cloudflare dashboard only after confirming the service account has the required permissions.
+The production Worker `anchor-family-api` is deployed, its `workers.dev` subdomain is enabled, and the Cloudflare account currently reports a `FIREBASE_SERVICE_ACCOUNT` secret binding on the Worker. Cloudflare does not reveal secret values after saving, so the value itself cannot be read back for inspection. The binding must contain the service-account JSON for `gen-lang-client-0963224775`, with the runtime roles listed above; replace it through the Cloudflare dashboard if it is missing, stale, or belongs to another project.
+
+To verify or replace the existing binding:
 
 1. Open the [Cloudflare dashboard](https://dash.cloudflare.com/).
 2. Select **Workers & Pages** > **anchor-family-api**.
 3. Open **Settings** > **Variables and Secrets**.
-4. Add a **Secret** named exactly `FIREBASE_SERVICE_ACCOUNT`.
-5. Paste the full JSON contents of the Google service-account key and save.
-6. Keep the value secret. Do not paste it into this repository, an issue, or ChatGPT.
+4. Confirm a **Secret** named exactly `FIREBASE_SERVICE_ACCOUNT` exists. If replacing it, paste the full JSON contents of the service-account key and save.
+5. Keep the value secret. Do not paste it into this repository, an issue, or ChatGPT.
 
 The Worker also uses these non-secret values:
 
@@ -68,7 +69,9 @@ The Worker also uses these non-secret values:
 
 The collection `familyNotificationTopics/{familyId}` is server-only. The rules explicitly deny all mobile-client reads and writes to it. Parent clients obtain the unguessable FCM topic from the Worker after authenticating; Child clients cannot read it.
 
-After reviewing the rules, deploy them from the Parent repository:
+Before publishing rules, the workflow checks the exact configured database metadata and stops unless Firestore reports `freeTier: true`. The existing production rules deployment run completed successfully on 2026-11-10; the branch's `firebase.json` points to the selected `ai-studio-anchorfamilysafe` database.
+
+After reviewing any future rule changes, deploy them from the Parent repository:
 
 1. Open **Actions** > **Deploy Anchor Firestore rules**.
 2. Select branch `fix/shared-firebase-secure-pairing` (or `main` after merge).
