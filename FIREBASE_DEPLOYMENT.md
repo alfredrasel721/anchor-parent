@@ -71,7 +71,7 @@ The collection `familyNotificationTopics/{familyId}` is server-only. The rules e
 After reviewing the rules, deploy them from the Parent repository:
 
 1. Open **Actions** > **Deploy Anchor Firestore rules**.
-2. Run on `main`.
+2. Select branch `fix/shared-firebase-secure-pairing` (or `main` after merge).
 3. Enter `DEPLOY_RULES` to confirm.
 4. Verify the workflow completes successfully.
 
