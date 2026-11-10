@@ -183,7 +183,7 @@ fun P01WelcomeSignInScreen(
                 }
 
                 Text(
-                    text = "Sign in with your Google Guardian account to synchronize your household across Firebase Firestore Enterprise and local Room storage.",
+                    text = "Sign in with your Google Guardian account to synchronize your household across Firebase Firestore and local Room storage.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

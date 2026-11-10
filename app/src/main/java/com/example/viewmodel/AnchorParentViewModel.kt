@@ -2086,9 +2086,9 @@ class AnchorParentViewModel(
             }
             val queueCount = localDao.getPendingOfflineSyncItems().size
             val summary = if (state.isCloudConnected) {
-                "Self-Test Passed at $timestamp • Shared Firestore DB (ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e), Room SQLite ($queueCount queued), GPS & Notification Channels Nominal"
+                "Self-Test Passed at $timestamp • Shared Firestore DB (ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d), Room SQLite ($queueCount queued), GPS & Notification Channels Nominal"
             } else {
-                "Self-Test Passed at $timestamp • Room SQLite ($queueCount queued items ready for sync), GPS & Notification Channels Nominal (Sign in on P-01 for Cloud Firestore)"
+                "Self-Test Passed at $timestamp • Room SQLite ($queueCount queued items ready for sync), GPS & Notification Channels Nominal (Sign in to sync with Cloud Firestore)"
             }
             _uiState.update {
                 it.copy(
@@ -2191,7 +2191,7 @@ class AnchorParentViewModel(
             appendLine("=== ANCHOR PARENT CRYPTOGRAPHIC DIAGNOSTIC LOG BUNDLE ===")
             appendLine("Application ID: com.anchor.parent")
             appendLine("Shared Firebase Project: gen-lang-client-0963224775")
-            appendLine("Shared Firestore Database: ai-studio-android-anchorpa-a481c5e6-6428-45e8-9bf4-3e58b56cbd1e")
+            appendLine("Shared Firestore Database: ai-studio-anchorfamilysafe-1f622f51-243e-4d62-9cb1-9fdaf9b5dc9d")
             appendLine("Household: ${state.familyHousehold.familyName} (${state.familyHousehold.familyId})")
             appendLine("Cloud Firestore Connected: ${state.isCloudConnected}")
             appendLine("Pending Offline Sync Queue Items: ${state.pendingOfflineSyncCount}")

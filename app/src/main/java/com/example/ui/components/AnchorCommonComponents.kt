@@ -196,7 +196,7 @@ fun StitchTopAppBar(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (isCloudConnected) {
-                            "Firebase Firestore Enterprise + Room Cache Synced"
+                            "Firebase Firestore + Room Cache Synced"
                         } else {
                             "Room SQLite Local Persistence Active • Bilateral Audit On"
                         },

@@ -252,7 +252,7 @@ fun AnchorParentRoot(viewModel: AnchorParentViewModel) {
                         onUnpairDevice = { viewModel.unpairPairedChildDevice(it) },
                         onCopyCode = { viewModel.copyPairingCodeToClipboard(context) },
                         onShareInstructions = { viewModel.sharePairingInstructions(context) },
-                        onFinishToDashboard = { viewModel.enterGuardianWorkspace(AnchorScreen.P04_FAMILY_DASHBOARD) }
+                        onFinishToDashboard = { viewModel.navigateTo(AnchorScreen.P04_FAMILY_DASHBOARD) }
                     )
                     AnchorScreen.P04_FAMILY_DASHBOARD -> P04FamilyDashboardScreen(
                         state = state,

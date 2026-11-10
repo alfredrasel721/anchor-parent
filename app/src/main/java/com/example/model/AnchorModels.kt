@@ -181,13 +181,13 @@ data class SafetyAlert(
     var familyId: String = "",
     var ownerUid: String = "",
     var childId: String = "",
-    var childName: String = "Leo",
+    var childName: String = "",
     var title: String = "",
     var description: String = "",
-    var category: String = "GEOFENCE", // SOS, GEOFENCE, DEVICE_HEALTH, SYSTEM
+    var category: String = "SYSTEM", // SOS, GEOFENCE, DEVICE_HEALTH, SYSTEM
     var severity: String = "INFO", // INFO, WARNING, CRITICAL
-    var timestampLabel: String = "Today • 8:02 AM",
-    var acknowledged: Boolean = true,
+    var timestampLabel: String = "",
+    var acknowledged: Boolean = false,
     @ServerTimestamp var createdAt: Timestamp? = null
 )
 
@@ -199,11 +199,11 @@ data class ChildRequest(
     var childId: String = "",
     var childName: String = "Leo",
     var requestType: String = "EXTRA_TIME", // EXTRA_TIME, NEW_APP
-    var targetName: String = "Minecraft",
-    var targetCategory: String = "Games & Entertainment",
-    var requestedBonusMinutes: Int = 15,
+    var targetName: String = "",
+    var targetCategory: String = "",
+    var requestedBonusMinutes: Int = 0,
     var childNote: String = "",
-    var usedTodaySummary: String = "45m / 45m daily cap reached",
+    var usedTodaySummary: String = "",
     var status: String = "PENDING", // PENDING, APPROVED, DECLINED
     var decisionSummary: String = "",
     var decidedBy: String = "",
@@ -218,11 +218,11 @@ data class FamilyMessage(
     var ownerUid: String = "",
     var childId: String = "",
     var senderName: String = "",
-    var senderRole: String = "PARENT", // PARENT, CHILD, SYSTEM
+    var senderRole: String = "SYSTEM", // PARENT, CHILD, SYSTEM
     var text: String = "",
     @get:PropertyName("isSystemEvent") @set:PropertyName("isSystemEvent")
     var isSystemEvent: Boolean = false,
-    var timestampLabel: String = "3:42 PM",
+    var timestampLabel: String = "",
     @ServerTimestamp var createdAt: Timestamp? = null
 )
 
@@ -233,9 +233,9 @@ data class FamilyTask(
     var ownerUid: String = "",
     var childId: String = "",
     var title: String = "",
-    var rewardSummary: String = "+15m Bonus Screen Time",
-    var dueSummary: String = "Due Today by 6:00 PM",
-    var status: String = "IN_PROGRESS", // IN_PROGRESS, READY_FOR_REVIEW, COMPLETED
+    var rewardSummary: String = "",
+    var dueSummary: String = "",
+    var status: String = "PENDING", // IN_PROGRESS, READY_FOR_REVIEW, COMPLETED
     var completedByChild: Boolean = false,
     var approvedByParent: Boolean = false,
     @ServerTimestamp var updatedAt: Timestamp? = null
@@ -250,11 +250,11 @@ data class GuardianContact(
     var relationRole: String = "",
     var emailOrPhone: String = "",
     @get:PropertyName("isPrimaryGuardian") @set:PropertyName("isPrimaryGuardian")
-    var isPrimaryGuardian: Boolean = true,
-    var permissionsSummary: String = "Full Policy & SOS Authority",
-    var receiveGeofenceAlerts: Boolean = true,
-    var receiveSosSms: Boolean = true,
-    var status: String = "Verified Active",
+    var isPrimaryGuardian: Boolean = false,
+    var permissionsSummary: String = "",
+    var receiveGeofenceAlerts: Boolean = false,
+    var receiveSosSms: Boolean = false,
+    var status: String = "PENDING",
     @ServerTimestamp var updatedAt: Timestamp? = null
 )
 
@@ -264,37 +264,21 @@ data class PremiumFilterConfig(
     var familyId: String = "",
     var ownerUid: String = "",
     var childId: String = "",
-    var webFilterProfile: String = "BALANCED_GUARDIAN", // STRICT_SAFEGUARD, BALANCED_GUARDIAN, CUSTOM_GRANULAR
-    var blockedCategories: List<String> = listOf(
-        "Adult & Explicit Content",
-        "Gambling, Betting & Loot Boxes",
-        "Violence, Hate & Extremism",
-        "Social Media Web Portals"
-    ),
-    var whitelistedDomains: List<String> = listOf(
-        "khanacademy.org",
-        "duolingo.com",
-        "pbskids.org",
-        "nasa.gov",
-        "oakridgeschools.edu"
-    ),
-    var blacklistedDomains: List<String> = listOf(
-        "omegle.com",
-        "4chan.org",
-        "discord.com/login",
-        "unblockedgames76.io"
-    ),
-    var socialShieldProfile: String = "SUPERVISED", // SUPERVISED, STRICT_BLOCK, GRANULAR
-    var discordDmWhitelistOnly: Boolean = true,
-    var robloxChatFiltered: Boolean = true,
-    var whatsappUnknownBlocked: Boolean = true,
-    var youtubeRestrictedMode: Boolean = true,
-    var notificationFilterEnabled: Boolean = true,
-    var notificationProtocol: String = "BATCHING", // BATCHING, TOTAL_SILENCE, EMERGENCY_ONLY
-    var batchMuteSocialDuringStudy: Boolean = true,
-    var blockGamingStreakPrompts: Boolean = true,
-    var allowLearningNotifications: Boolean = true,
-    var liveSessionAuditCode: String = "#LIV-84920",
+    var webFilterProfile: String = "", // STRICT_SAFEGUARD, BALANCED_GUARDIAN, CUSTOM_GRANULAR
+    var blockedCategories: List<String> = emptyList(),
+    var whitelistedDomains: List<String> = emptyList(),
+    var blacklistedDomains: List<String> = emptyList(),
+    var socialShieldProfile: String = "", // SUPERVISED, STRICT_BLOCK, GRANULAR
+    var discordDmWhitelistOnly: Boolean = false,
+    var robloxChatFiltered: Boolean = false,
+    var whatsappUnknownBlocked: Boolean = false,
+    var youtubeRestrictedMode: Boolean = false,
+    var notificationFilterEnabled: Boolean = false,
+    var notificationProtocol: String = "", // BATCHING, TOTAL_SILENCE, EMERGENCY_ONLY
+    var batchMuteSocialDuringStudy: Boolean = false,
+    var blockGamingStreakPrompts: Boolean = false,
+    var allowLearningNotifications: Boolean = false,
+    var liveSessionAuditCode: String = "",
     @ServerTimestamp var updatedAt: Timestamp? = null
 )
 
@@ -304,9 +288,9 @@ data class LiveSessionRequest(
     var familyId: String = "",
     var ownerUid: String = "",
     var childId: String = "",
-    var auditCode: String = "#LIV-84920",
+    var auditCode: String = "",
     var mode: String = "Screen View",
-    var reason: String = "Checking homework progress & safety check-in",
+    var reason: String = "",
     var status: String = "AWAITING_CHILD_CONSENT", // AWAITING_CHILD_CONSENT, CONSENT_GRANTED, DECLINED_BY_CHILD, ENDED
     var consentGranted: Boolean = false,
     var requestedAtEpochMs: Long = 0L,
